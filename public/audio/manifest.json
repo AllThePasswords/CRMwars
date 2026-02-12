@@ -14,5 +14,6 @@
   "command-1": "command-1.mp3",
   "command-2": "command-2.mp3",
   "music-title": "music-title.mp3",
-  "music-game": "music-game.mp3"
+  "music-game": "music-game.mp3",
+  "music-battle": "music-battle.mp3"
 }

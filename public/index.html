@@ -42,7 +42,10 @@ canvas#gameCanvas{display:block;width:100%;height:100%}
 .build-btn .btn-desc{display:block;font-size:9px;color:#555;margin-top:2px}
 #bottomBar{position:absolute;bottom:0;left:0;right:0;height:40px;background:rgba(18,19,31,0.92);border-top:1px solid var(--panel-border);display:flex;align-items:center;padding:0 16px;z-index:10;font-size:11px;color:#555;backdrop-filter:blur(8px)}
 #eventLog{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-#minimap{position:absolute;bottom:44px;left:8px;width:200px;height:260px;background:rgba(10,10,18,0.9);border:1px solid var(--panel-border);z-index:10}
+#minimap{width:100%;background:rgba(10,10,18,0.9);border:1px solid var(--panel-border)}
+[data-tooltip]{position:relative}
+[data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(10,10,18,0.95);color:#c8c8d0;border:1px solid var(--green-dim);padding:4px 10px;font-size:10px;font-family:'Share Tech Mono',monospace;z-index:30;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:220px;white-space:normal;text-align:center;line-height:1.4}
+#trackSelect option{background:#12131f;color:var(--text)}
 .scroll-zone{position:absolute;z-index:5}
 .scroll-zone-top{top:48px;left:0;right:260px;height:30px}
 .scroll-zone-bottom{bottom:40px;left:0;right:260px;height:30px}
@@ -269,16 +272,17 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
   <div class="settings-row"><label>Voice Feedback</label><div class="slider-wrap"><input type="checkbox" id="voiceToggle" checked onchange="voiceEnabled=this.checked"></div></div>
   <div class="settings-row"><label>SFX Volume</label><div class="slider-wrap"><input type="range" id="sfxSlider" min="0" max="100" value="50" step="5" oninput="setSFXVolume(this.value)"><span id="sfxLabel">50%</span></div></div>
   <div class="settings-row"><label>Music Volume</label><div class="slider-wrap"><input type="range" id="musicSlider" min="0" max="100" value="30" step="5" oninput="setMusicVolume(this.value)"><span id="musicLabel">30%</span></div></div>
+  <div class="settings-row"><label>Music Track</label><div class="slider-wrap"><select id="trackSelect" onchange="switchMusic(this.value)" style="flex:1;background:#1e2035;border:1px solid #2a2a3a;color:var(--green);font-family:'Share Tech Mono',monospace;font-size:12px;padding:4px 8px;outline:none;cursor:pointer"><option value="title">Atmospheric</option><option value="game" selected>Strategic</option><option value="battle">Intense</option></select></div></div>
   <div class="settings-row"><label>UI Scale</label><div class="slider-wrap"><input type="range" id="uiScaleSlider" min="80" max="150" value="100" step="10" oninput="setUIScale(this.value)"><span id="uiScaleLabel">100%</span></div></div>
 </div>
 <div id="rightPanel">
+  <div class="panel-section" style="padding:8px"><div class="panel-title">🗺 Map</div><canvas id="minimap" style="display:block;cursor:crosshair"></canvas></div>
   <div class="panel-section"><div class="panel-title">🏗 Build</div><div id="buildingButtons"></div></div>
   <div class="panel-section"><div class="panel-title">👤 Hire</div><div id="unitButtons"></div></div>
   <div class="panel-section"><div class="panel-title">👥 Team <span id="teamCount" style="color:#555;font-size:10px"></span></div><div id="teamList"></div></div>
   <div class="panel-section"><div class="panel-title">🔬 Research</div><div id="techButtons"></div></div>
   <div class="panel-section"><div class="panel-title">📊 Intel</div><div id="marketIntel" style="font-size:11px;color:#666;line-height:1.7"></div></div>
 </div>
-<canvas id="minimap"></canvas>
 <div class="scroll-zone scroll-zone-top" data-dir="up"></div>
 <div class="scroll-zone scroll-zone-bottom" data-dir="down"></div>
 <div class="scroll-zone scroll-zone-left" data-dir="left"></div>
@@ -547,6 +551,7 @@ function switchMusic(track){
   const key='music-'+track;
   if(!sfxManifest[key]||musicTrack===track)return;
   musicTrack=track;
+  const sel=document.getElementById('trackSelect');if(sel)sel.value=track;
   // Crossfade: fade out then switch
   const fadeOut=setInterval(()=>{
     if(bgMusic.volume>0.02){bgMusic.volume=Math.max(0,bgMusic.volume-0.03)}
@@ -566,6 +571,11 @@ function unmuteMusic(){
   bgMusic.volume=musicVolume;
   bgMusic.play().catch(()=>{});
 }
+
+// ---- TITLE SCREEN MUSIC ----
+document.getElementById('titleScreen').addEventListener('click', function() {
+  initMusic(); unmuteMusic();
+}, { once: true });
 
 // ---- GLOBAL CLICK SFX INTERCEPTOR ----
 document.body.addEventListener('click',function(e){
@@ -643,6 +653,7 @@ let camX=0,camY=0,zoom=0.7,isDrag=false,dragSX,dragSY,camSX,camSY,dragMoved=fals
 let selectedUnit=null,selectedUnits=[],logs=[],edgeDir={x:0,y:0},keysDown=new Set(),particles=[];
 let gridOpacity=0.4,showLabels=true,lastBtnRebuild=0;
 let boxSelecting=false,boxSX=0,boxSY=0,boxEX=0,boxEY=0;
+let battleMusicTriggered=false;
 let setupCash=500,setupReps=2,setupMarket=1,gameMode='standard',zeroSumType='random',winCondition='domination';
 let aiDifficulty=3,oppStart='slight'; // 1-5 difficulty, even/slight/incumbent
 let waypoints=[]; // {x,y,tile,customer,time,count}
@@ -1124,6 +1135,7 @@ function genNickname(type,owner){
 
 // ---- INIT ----
 function startGame(isMultiplayer){
+  battleMusicTriggered=false;
   switchMusic('game');
   document.getElementById('titleScreen').style.display='none';
   document.getElementById('gameContainer').style.display='block';
@@ -1208,7 +1220,7 @@ function startGame(isMultiplayer){
   }
   requestAnimationFrame(gameLoop);
 }
-function resizeCanvas(){if(!canvas)return;canvas.width=window.innerWidth;canvas.height=window.innerHeight;mmCanvas.width=200;mmCanvas.height=260}
+function resizeCanvas(){if(!canvas)return;canvas.width=window.innerWidth;canvas.height=window.innerHeight;mmCanvas.width=236;mmCanvas.height=160}
 
 // ---- INPUT ----
 function setupInput(){
@@ -1250,6 +1262,22 @@ function setupInput(){
   canvas.addEventListener('dblclick',e=>handleDblClick(e));
   document.addEventListener('keydown',e=>{if(e.key===' ')e.preventDefault();keysDown.add(e.key.toLowerCase());if(e.key==='Escape'){selectedUnit=null;selectedUnits=[];inspectedUnit=null}});
   document.addEventListener('keyup',e=>keysDown.delete(e.key.toLowerCase()));
+  // Minimap click-to-navigate + drag
+  let mmDragging=false;
+  function navigateFromMinimap(e){
+    const rect=mmCanvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    const mmW=mmCanvas.width,mmH=mmCanvas.height;
+    const s=Math.min(mmW,mmH)/MAP;
+    const ox=(mmW-MAP*s)/2, oy=(mmH-MAP*s)/2;
+    const gridX=(mx-ox)/s, gridY=(my-oy)/s;
+    const iso=toIso(gridX,gridY);
+    camX=iso.x-canvas.width/zoom/2;
+    camY=iso.y-(canvas.height-48)/zoom/2;
+  }
+  mmCanvas.addEventListener('mousedown',e=>{e.preventDefault();mmDragging=true;navigateFromMinimap(e)});
+  document.addEventListener('mousemove',e=>{if(mmDragging)navigateFromMinimap(e)});
+  document.addEventListener('mouseup',()=>{mmDragging=false});
 }
 function finishBoxSelect(){
   // Convert screen box to world coords
@@ -1392,6 +1420,13 @@ function gameTick(){
   if(gameTime%20===0){const idleCount=player.units.filter(u=>u.state==='idle'&&u.type!=='service_rep').length;if(idleCount>=2&&!voiceMilestones.has('idle'+gameTime)){voiceMilestones.add('idle'+gameTime);speakRandom(["Idle reps detected. Deploy them!","We have reps sitting around. Put them to work."],'system')}}
   // Burn > MRR warning
   if(gameTime%5===0){const sal=player.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);if(sal>player.arr&&player.arr>0){burnExceedsMRRCount++}else{burnExceedsMRRCount=0}if(burnExceedsMRRCount>=3&&!voiceMilestones.has('bleeding')){voiceMilestones.add('bleeding');speakRandom(["We're bleeding cash.","Burn rate exceeds revenue. Cut costs or close deals."],'system')}}
+  // Battle music auto-trigger
+  if(!battleMusicTriggered&&gameRunning){
+    const maxShare=Math.max(...players.map(p=>p.customers.length))/TOTAL_CUST;
+    if(maxShare>=0.50||isDistressed(player)||gameTime>=200){
+      battleMusicTriggered=true;switchMusic('battle');
+    }
+  }
   // Win condition checks (N-player)
   const pShare=TOTAL_CUST>0?player.customers.length/TOTAL_CUST:0;
   if(winCondition==='domination'){
@@ -2407,8 +2442,10 @@ function drawUnit(u,iso,la,lp,lerpPos){
 
 // ---- MINIMAP — shows UK/Ireland shape ----
 function drawMinimap(){
-  mmCtx.fillStyle='#0a0a12';mmCtx.fillRect(0,0,200,260);
-  const s=200/MAP,ox=0,oy=10;
+  const mmW=mmCanvas.width,mmH=mmCanvas.height;
+  mmCtx.fillStyle='#0a0a12';mmCtx.fillRect(0,0,mmW,mmH);
+  const s=Math.min(mmW,mmH)/MAP;
+  const ox=(mmW-MAP*s)/2, oy=(mmH-MAP*s)/2;
   // Landmass
   function drawOutlineMM(outline,col){mmCtx.beginPath();outline.forEach((p,i)=>{const px=p[0]*s+ox,py=p[1]*s+oy;i===0?mmCtx.moveTo(px,py):mmCtx.lineTo(px,py)});mmCtx.closePath();mmCtx.fillStyle=col;mmCtx.fill();mmCtx.strokeStyle='rgba(255,255,255,0.1)';mmCtx.lineWidth=1;mmCtx.stroke()}
   drawOutlineMM(IRELAND_OUTLINE,'rgba(20,40,45,0.6)');
@@ -2425,6 +2462,15 @@ function drawMinimap(){
   players.forEach(p=>{mmCtx.fillStyle=p.color;p.units.forEach(u=>{mmCtx.fillRect(u.x*s+ox-1,u.y*s+oy-1,3,3)})});
   // HQ markers — all players
   players.forEach(p=>{mmCtx.strokeStyle=p.color;mmCtx.lineWidth=2;p.buildings.slice(0,1).forEach(b=>{mmCtx.strokeRect(b.x*s+ox-3,b.y*s+oy-3,6,6)})});
+  // Viewport rectangle
+  const vw=canvas.width/zoom, vh=(canvas.height-48)/zoom;
+  const tl=fromIso(camX,camY), tr=fromIso(camX+vw,camY);
+  const bl=fromIso(camX,camY+vh), br=fromIso(camX+vw,camY+vh);
+  mmCtx.strokeStyle='rgba(0,255,65,0.6)';mmCtx.lineWidth=1.5;
+  mmCtx.beginPath();
+  mmCtx.moveTo(tl.x*s+ox,tl.y*s+oy);mmCtx.lineTo(tr.x*s+ox,tr.y*s+oy);
+  mmCtx.lineTo(br.x*s+ox,br.y*s+oy);mmCtx.lineTo(bl.x*s+ox,bl.y*s+oy);
+  mmCtx.closePath();mmCtx.stroke();
 }
 
 // ---- UI ----
@@ -2465,7 +2511,7 @@ function updateBuildBtns(){const c=document.getElementById('buildingButtons');c.
   Object.entries(BLDGS).forEach(([k,b])=>{const has=!b.requires||player.buildings.some(p=>p.type===b.requires&&p.bp===undefined);const dup=player.buildings.some(p=>p.type===k)&&k!=='hq_upgrade';
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!has||dup||player.cash<b.cost;btn.innerHTML=`<span class="btn-icon">${b.icon}</span><span class="btn-info"><span class="btn-name">${b.name}</span><span class="btn-cost">$${b.cost}K</span></span>`;btn.onclick=()=>buildBldg(k);
-    if(btn.disabled){if(!has)btn.title='Requires '+((BLDGS[b.requires]||{}).name||b.requires);else if(dup)btn.title='Already built';else btn.title='Not enough cash ($'+b.cost+'K needed)'}else{btn.title=''}
+    if(btn.disabled){if(!has)btn.dataset.tooltip='Requires '+((BLDGS[b.requires]||{}).name||b.requires);else if(dup)btn.dataset.tooltip='Already built';else btn.dataset.tooltip='Not enough cash ($'+b.cost+'K needed)'}else{btn.removeAttribute('data-tooltip')}
     const ib=document.createElement('button');ib.className='info-btn';ib.textContent='i';ib.onclick=(e)=>{e.stopPropagation();showBldgInfo(k)};
     row.appendChild(btn);row.appendChild(ib);c.appendChild(row)})}
 function updateUnitBtns(){const c=document.getElementById('unitButtons');c.innerHTML='';
@@ -2474,7 +2520,7 @@ function updateUnitBtns(){const c=document.getElementById('unitButtons');c.inner
     const taMax=k==='talent_acq'&&player.taBuilt;
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!hB||!hT||player.cash<u.cost||atC||taMax;
-    if(btn.disabled){if(!hB)btn.title='Requires '+((BLDGS[u.requires]||{}).name||u.requires);else if(!hT)btn.title='Requires '+((TECHS[u.techReq]||{}).name||u.techReq)+' research';else if(player.cash<u.cost)btn.title='Not enough cash ($'+u.cost+'K needed)';else if(atC)btn.title='Office full — build more offices or HQ Upgrade';else if(taMax)btn.title='Maximum 1 Talent Acquisition'}else{btn.title=''}
+    if(btn.disabled){if(!hB)btn.dataset.tooltip='Requires '+((BLDGS[u.requires]||{}).name||u.requires);else if(!hT)btn.dataset.tooltip='Requires '+((TECHS[u.techReq]||{}).name||u.techReq)+' research';else if(player.cash<u.cost)btn.dataset.tooltip='Not enough cash ($'+u.cost+'K needed)';else if(atC)btn.dataset.tooltip='Office full — build more offices or HQ Upgrade';else if(taMax)btn.dataset.tooltip='Maximum 1 Talent Acquisition'}else{btn.removeAttribute('data-tooltip')}
     const countLabel=taMax?'<span style="color:#bb44ff;font-size:9px">MAX 1</span>':'<span style="color:#555">('+player.units.filter(x=>x.type===k).length+')</span>';
     btn.innerHTML=`<span class="btn-icon">${u.icon}</span><span class="btn-info"><span class="btn-name">${u.name} ${countLabel}</span><span class="btn-cost">$${u.cost}K · $${u.salary}K/mo</span></span>`;btn.onclick=()=>hireUnit(k);
     const ib=document.createElement('button');ib.className='info-btn';ib.textContent='i';ib.onclick=(e)=>{e.stopPropagation();showUnitInfo(k)};
@@ -2483,7 +2529,7 @@ function updateTechBtns(){const c=document.getElementById('techButtons');c.inner
   Object.entries(TECHS).forEach(([k,t])=>{const hB=!t.requires||player.buildings.some(p=>p.type===t.requires&&p.bp===undefined);const hT=!t.techReq||player.tech[t.techReq]===true;const done=player.tech[k]===true;const building=player.tech[k]==='building';
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!hB||!hT||player.cash<t.cost||done||building;
-    if(btn.disabled&&!done&&!building){if(!hB)btn.title='Requires '+((BLDGS[t.requires]||{}).name||t.requires);else if(!hT)btn.title='Requires '+((TECHS[t.techReq]||{}).name||t.techReq)+' research';else btn.title='Not enough cash ($'+t.cost+'K needed)'}else{btn.title=''}
+    if(btn.disabled&&!done&&!building){if(!hB)btn.dataset.tooltip='Requires '+((BLDGS[t.requires]||{}).name||t.requires);else if(!hT)btn.dataset.tooltip='Requires '+((TECHS[t.techReq]||{}).name||t.techReq)+' research';else btn.dataset.tooltip='Not enough cash ($'+t.cost+'K needed)'}else{btn.removeAttribute('data-tooltip')}
     if(done)btn.style.borderColor='var(--green-dim)';
     if(building&&player.techBuild&&player.techBuild[k]){const tb=player.techBuild[k];const pct=Math.floor(tb.bp/tb.bt*100);btn.style.borderColor='var(--gold)';btn.innerHTML=`<span class="btn-icon">${t.icon}</span><span class="btn-info"><span class="btn-name">${t.name}</span><span class="btn-cost" style="color:var(--gold)">RESEARCHING ${pct}%</span></span>`}
     else{btn.innerHTML=`<span class="btn-icon">${t.icon}</span><span class="btn-info"><span class="btn-name">${t.name} ${done?'✓':''}</span><span class="btn-cost">${done?'DONE':'$'+t.cost+'K'}</span></span>`}

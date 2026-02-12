@@ -8,25 +8,26 @@ const path = require('path');
 // ---- SFX definitions ----
 
 const SFX = [
-  { key: 'click-1', prompt: 'Short retro 8-bit beep click, 100ms, crisp, arcade game UI button' },
-  { key: 'click-2', prompt: 'Short retro 8-bit tick, 80ms, sharp, video game menu select' },
-  { key: 'click-3', prompt: 'Short retro 8-bit blip, 120ms, clean, pixel art game UI' },
-  { key: 'confirm-1', prompt: 'Retro 8-bit confirmation chime, rising pitch, 150ms, satisfying' },
-  { key: 'confirm-2', prompt: 'Retro 8-bit success beep, 180ms, cheerful, video game' },
-  { key: 'build-1', prompt: 'Retro 8-bit cash register sound, coin drop, 200ms, chiptune' },
-  { key: 'build-2', prompt: 'Retro 8-bit construction placed sound, 180ms, arcade' },
-  { key: 'research-1', prompt: 'Retro 8-bit tech unlock, 200ms, ascending futuristic tone' },
-  { key: 'error-1', prompt: 'Retro 8-bit error buzz, 100ms, low pitch, denied' },
-  { key: 'error-2', prompt: 'Retro 8-bit negative sound, 120ms, game over style' },
-  { key: 'select-1', prompt: 'Retro 8-bit unit select tick, 60ms, subtle, RTS game' },
-  { key: 'select-2', prompt: 'Retro 8-bit selection beep, 70ms, quick, tactical' },
-  { key: 'command-1', prompt: 'Retro 8-bit move order sound, 80ms, military, affirmative' },
-  { key: 'command-2', prompt: 'Retro 8-bit command beep, 90ms, tactical, RTS game' },
+  { key: 'click-1', prompt: 'Subtle modern UI click sound, clean soft tap, 100ms, minimal, professional game interface' },
+  { key: 'click-2', prompt: 'Gentle digital interface tap, light tactile click, 80ms, polished, subtle resonance' },
+  { key: 'click-3', prompt: 'Clean soft button press sound, delicate click with tiny reverb tail, 120ms, modern game UI' },
+  { key: 'confirm-1', prompt: 'Elegant confirmation tone, gentle ascending two-note chime, warm and satisfying, 200ms, modern UI' },
+  { key: 'confirm-2', prompt: 'Soft success notification sound, pleasant rising tone with subtle shimmer, 180ms, clean and warm' },
+  { key: 'build-1', prompt: 'Solid placement thud with light metallic ring, construction confirmation, 250ms, grounded and satisfying' },
+  { key: 'build-2', prompt: 'Mechanical lock-in-place sound, sturdy click with brief harmonic ring, 200ms, building game' },
+  { key: 'research-1', prompt: 'Discovery unlock sound, bright crystalline ascending tone with soft electric hum, 300ms, technology reveal' },
+  { key: 'error-1', prompt: 'Soft denial tone, brief low two-note descending sound, 120ms, gentle but clear rejection, modern UI' },
+  { key: 'error-2', prompt: 'Muted warning buzz, short low-frequency pulse, 100ms, not harsh, professional game feedback' },
+  { key: 'select-1', prompt: 'Quick subtle selection tick, soft high-frequency tap, 60ms, barely there, refined game interface' },
+  { key: 'select-2', prompt: 'Light digital ping, minimal selection indicator, 70ms, clean and unobtrusive, strategy game' },
+  { key: 'command-1', prompt: 'Crisp command acknowledgment, brief focused ping with authority, 80ms, military strategy game' },
+  { key: 'command-2', prompt: 'Short tactical confirmation beep, clean and decisive, 90ms, subtle authority, strategy game command' },
 ];
 
 const MUSIC = [
-  { key: 'music-title', prompt: 'Atmospheric dark synthwave ambient loop, slow tempo, retro 80s, pulsing bass, strategic mood, video game title screen', duration: 22 },
-  { key: 'music-game', prompt: 'Energetic driving synthwave chiptune loop, 120 BPM, retro 80s, arpeggiator, pulsing bass, competitive RTS game', duration: 22 },
+  { key: 'music-title', prompt: 'Ambient cinematic soundtrack, slow evolving pad layers, deep warm bass drone, soft distant piano melody, gentle atmospheric reverb, mysterious and inviting mood, corporate strategy game menu screen, seamless loop, 22 seconds', duration: 22 },
+  { key: 'music-game', prompt: 'Mid-tempo cinematic strategy game soundtrack, layered orchestral strings with soft electronic pulse, steady subtle percussion, hopeful yet focused mood, clean modern production, warm analog synth pads underneath, seamless loop, 22 seconds', duration: 22 },
+  { key: 'music-battle', prompt: 'Intense cinematic strategy game soundtrack, driving rhythmic percussion, urgent string ostinato, powerful brass stabs, rising tension, layered electronic bass, competitive high-stakes mood, dramatic and focused energy, seamless loop, 22 seconds', duration: 22 },
 ];
 
 // ---- Resolve API key ----
