@@ -69,6 +69,20 @@ input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4p
 input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--green);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 6px rgba(0,255,65,0.3)}
 input[type="range"]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--green);cursor:pointer;border:2px solid var(--bg)}
 input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:pointer}
+.settings-divider{border:none;border-top:1px solid #1e2035;margin:10px 0}
+.settings-row input[type="password"]{width:100%;background:rgba(255,255,255,0.04);border:1px solid #2a2a3a;color:var(--green);font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 6px;outline:none;border-radius:2px}
+.settings-row input[type="password"]:focus{border-color:var(--green-dim)}
+.eleven-key-row{flex-wrap:wrap;gap:4px}
+.eleven-key-row label{flex:0 0 100%;margin-bottom:2px}
+.eleven-key-row .slider-wrap{gap:4px}
+.eleven-test-btn,.eleven-preload-btn{background:transparent;border:1px solid #333;color:#888;font-family:'Share Tech Mono',monospace;font-size:10px;padding:2px 8px;cursor:pointer;transition:all 0.15s;border-radius:2px;white-space:nowrap}
+.eleven-test-btn:hover,.eleven-preload-btn:hover{border-color:var(--green-dim);color:var(--green);background:rgba(0,255,65,0.05)}
+.eleven-test-btn:disabled,.eleven-preload-btn:disabled{opacity:0.4;cursor:not-allowed}
+.eleven-preload-row{flex-wrap:wrap;gap:4px}
+.eleven-preload-row label{flex:0 0 100%;margin-bottom:2px}
+.eleven-progress{width:100%;height:4px;background:#1e2035;border-radius:2px;overflow:hidden;display:none}
+.eleven-progress-bar{height:100%;background:var(--green);width:0%;transition:width 0.3s}
+.eleven-status{font-size:9px;color:#555;width:100%;text-align:right}
 .info-btn{background:none;border:1px solid #333;color:#666;font-size:10px;width:18px;height:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;padding:0;line-height:1;font-family:'Orbitron',sans-serif}
 .info-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(51,153,255,0.1)}
 #infoModal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);align-items:center;justify-content:center}
@@ -179,6 +193,12 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
         <button class="setup-opt" data-val="1.8" onclick="pickOpt(this)">Large<span class="opt-sub">~220 prospects</span></button>
         <button class="setup-opt" data-val="3" onclick="pickOpt(this)">Massive<span class="opt-sub">~360 prospects</span></button>
       </div></div>
+    <div class="setup-row"><label class="setup-label">Players</label>
+      <div class="setup-options" id="playerCountOptions">
+        <button class="setup-opt active" data-val="2" onclick="pickOpt(this)">2<span class="opt-sub">Classic</span></button>
+        <button class="setup-opt" data-val="3" onclick="pickOpt(this)">3<span class="opt-sub">Three-way</span></button>
+        <button class="setup-opt" data-val="4" onclick="pickOpt(this)">4<span class="opt-sub">Free-for-all</span></button>
+      </div></div>
     <div class="setup-row"><label class="setup-label">Game Mode</label>
       <div class="setup-options" id="modeOptions">
         <button class="setup-opt active" data-val="standard" onclick="pickOpt(this);document.getElementById('zeroSumSub').style.display='none'">Standard<span class="opt-sub">Fixed prospects</span></button>
@@ -262,6 +282,9 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
   <div class="settings-row"><label>Show Labels</label><div class="slider-wrap"><input type="checkbox" id="labelToggle" checked onchange="showLabels=this.checked;prerenderMap()"></div></div>
   <div class="settings-row"><label>Voice Feedback</label><div class="slider-wrap"><input type="checkbox" id="voiceToggle" checked onchange="voiceEnabled=this.checked"></div></div>
   <div class="settings-row"><label>UI Scale</label><div class="slider-wrap"><input type="range" id="uiScaleSlider" min="80" max="150" value="100" step="10" oninput="setUIScale(this.value)"><span id="uiScaleLabel">100%</span></div></div>
+  <hr class="settings-divider">
+  <div class="settings-row eleven-key-row"><label>ElevenLabs TTS</label><div class="slider-wrap"><input type="password" id="elevenKeyInput" placeholder="API key" oninput="onElevenKeyInput(this.value)"><button class="eleven-test-btn" id="elevenTestBtn" onclick="testElevenLabs()" disabled>Test</button></div></div>
+  <div class="settings-row eleven-preload-row" id="elevenPreloadRow" style="display:none"><label>Preload Voices</label><div class="slider-wrap"><button class="eleven-preload-btn" id="elevenPreloadBtn" onclick="preloadAllVoices()">Preload All</button><span class="eleven-status" id="elevenStatus"></span></div><div class="eleven-progress" id="elevenProgress"><div class="eleven-progress-bar" id="elevenProgressBar"></div></div></div>
 </div>
 <div id="rightPanel">
   <div class="panel-section"><div class="panel-title">🏗 Build</div><div id="buildingButtons"></div></div>
@@ -327,7 +350,15 @@ const VOICE_LINES={
     poachSuccess:["We poached their best rep!","Welcome to the team! Great hire.","Their loss, our gain!","Talent acquired! They'll be furious."],
     poachFail:["They got away. Back to sourcing.","Offer rejected. We'll find another.","Poach attempt failed. Regroup."],
     negotiationWon:["Our HR outplayed theirs!","Talent war won! We captured their recruiter.","Hostile takeover of their HR department!"],
-    negotiationLost:["We lost the talent war!","Their recruiter got the upper hand.","HR battle lost. Regroup."]
+    negotiationLost:["We lost the talent war!","Their recruiter got the upper hand.","HR battle lost. Regroup."],
+    sabotageSuccess:["Their loyalty is crumbling!","Sabotage successful. Their customers are wavering.","Marketing blitz landed. They're losing faith."],
+    customerChurned:["Customer left. We need CS reps out there.","Churn alert! Deploy service reps.","We lost one to churn. Lock down the rest."],
+    winCondProgress:["Almost there! Just a few more accounts!","We're closing in on victory!","The finish line is in sight!"],
+    lowCash:["Budget's getting tight.","Cash reserves running low.","Watch the burn rate, boss."],
+    enemyGrowing:["They're pulling ahead.","Competitor is gaining ground.","We need to pick up the pace."],
+    acquisition:["Initiating hostile takeover!","M and A department activated.","Preparing acquisition paperwork."],
+    acquisitionComplete:["Acquisition complete! Their customers are ours.","Hostile takeover successful!","We just bought the competition."],
+    acquisitionThreat:["Hostile takeover incoming! Shore up the balance sheet!","They're trying to acquire us! Get cash above fifty K!","M and A threat detected. We need revenue, now!"]
   }
 };
 
@@ -342,40 +373,224 @@ const VOICE_CONFIG={
   system:{pitch:1.1,rate:1.0}
 };
 
+// ---- ELEVENLABS TTS ----
+const ELEVEN_VOICES={
+  sales_rep:    'JBFqnCBsd6RMkjVDRZzb', // Rachel - warm, friendly
+  sr_sales_rep: 'EXAVITQu4vr4xnSDxMaL', // Bella - confident
+  marketer:     'MF3mGyEYCl7XYWbV9V6O', // Emily - energetic
+  service_rep:  'ThT5KcBeYPX3keUQqHPh', // Dorothy - calm, supportive
+  ai_agent:     'VR6AewLTigWG4xSOukaG', // Arnold - deep/robotic
+  talent_acq:   'pNInz6obpgDQGcFmaJgB', // Adam - authoritative
+  system:       'ErXwobaYiN019PkySvjV', // Antoni - neutral narrator
+};
+const elevenCache=new Map(); // key: text+type → blob URL
+let elevenLabsKey=localStorage.getItem('crm-elevenlabs-key')||'';
+
+function onElevenKeyInput(val){
+  elevenLabsKey=val.trim();
+  localStorage.setItem('crm-elevenlabs-key',elevenLabsKey);
+  const testBtn=document.getElementById('elevenTestBtn');
+  const preloadRow=document.getElementById('elevenPreloadRow');
+  if(testBtn)testBtn.disabled=!elevenLabsKey;
+  if(preloadRow)preloadRow.style.display=elevenLabsKey?'flex':'none';
+}
+
+function testElevenLabs(){
+  if(!elevenLabsKey)return;
+  const btn=document.getElementById('elevenTestBtn');
+  btn.disabled=true;btn.textContent='...';
+  const voiceId=ELEVEN_VOICES.system;
+  fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voiceId,{
+    method:'POST',
+    headers:{'xi-api-key':elevenLabsKey,'Content-Type':'application/json'},
+    body:JSON.stringify({text:'ElevenLabs connected. Voices online.',model_id:'eleven_multilingual_v2'})
+  }).then(r=>{
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.blob();
+  }).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    const audio=new Audio(url);
+    audio.play();
+    btn.textContent='OK!';btn.style.color='var(--green)';btn.style.borderColor='var(--green-dim)';
+    setTimeout(()=>{btn.textContent='Test';btn.style.color='';btn.style.borderColor='';btn.disabled=false},3000);
+  }).catch(e=>{
+    console.error('ElevenLabs test failed:',e);
+    btn.textContent='Fail';btn.style.color='var(--red)';btn.style.borderColor='var(--red)';
+    setTimeout(()=>{btn.textContent='Test';btn.style.color='';btn.style.borderColor='';btn.disabled=false},3000);
+  });
+}
+
+function elevenSpeak(text,type){
+  const cacheKey=text+'||'+type;
+  if(elevenCache.has(cacheKey)){
+    const audio=new Audio(elevenCache.get(cacheKey));
+    audio.volume=0.7;
+    audio.onended=()=>{
+      voiceBusy=false;
+      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+    };
+    audio.onerror=()=>{
+      voiceBusy=false;
+      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+    };
+    audio.play().catch(()=>{
+      voiceBusy=false;
+      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+    });
+    return;
+  }
+  const voiceId=ELEVEN_VOICES[type]||ELEVEN_VOICES.system;
+  fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voiceId,{
+    method:'POST',
+    headers:{'xi-api-key':elevenLabsKey,'Content-Type':'application/json'},
+    body:JSON.stringify({text,model_id:'eleven_multilingual_v2'})
+  }).then(r=>{
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.blob();
+  }).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    elevenCache.set(cacheKey,url);
+    const audio=new Audio(url);
+    audio.volume=0.7;
+    audio.onended=()=>{
+      voiceBusy=false;
+      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+    };
+    audio.onerror=()=>{
+      voiceBusy=false;
+      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+    };
+    audio.play().catch(()=>{
+      voiceBusy=false;
+      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+    });
+  }).catch(e=>{
+    console.warn('ElevenLabs failed, falling back to browser TTS:',e);
+    browserSpeak(text,type);
+  });
+}
+
+function getAllVoiceLines(){
+  const lines=[];
+  for(const[type,arr] of Object.entries(VOICE_LINES.select)){for(const t of arr)lines.push({text:t,type})}
+  for(const[type,arr] of Object.entries(VOICE_LINES.command)){for(const t of arr)lines.push({text:t,type})}
+  for(const[key,val] of Object.entries(VOICE_LINES.system)){
+    if(key==='trainComplete'){
+      for(const[subtype,arr] of Object.entries(val)){for(const t of arr)lines.push({text:t,type:subtype})}
+    } else if(Array.isArray(val)){
+      for(const t of val)lines.push({text:t,type:'system'})
+    }
+  }
+  return lines;
+}
+
+function preloadAllVoices(){
+  if(!elevenLabsKey)return;
+  const lines=getAllVoiceLines();
+  const total=lines.length;
+  let done=0,failed=0;
+  const statusEl=document.getElementById('elevenStatus');
+  const progressEl=document.getElementById('elevenProgress');
+  const barEl=document.getElementById('elevenProgressBar');
+  const btn=document.getElementById('elevenPreloadBtn');
+  btn.disabled=true;
+  progressEl.style.display='block';
+  statusEl.textContent='0/'+total;
+  barEl.style.width='0%';
+
+  // Process in batches of 3 to avoid rate limits
+  let idx=0;
+  function nextBatch(){
+    if(idx>=total){
+      btn.disabled=false;
+      statusEl.textContent=done+'/'+total+(failed?' ('+failed+' failed)':'');
+      return;
+    }
+    const batch=lines.slice(idx,idx+3);
+    idx+=3;
+    Promise.all(batch.map(line=>{
+      const cacheKey=line.text+'||'+line.type;
+      if(elevenCache.has(cacheKey)){done++;return Promise.resolve()}
+      const voiceId=ELEVEN_VOICES[line.type]||ELEVEN_VOICES.system;
+      return fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voiceId,{
+        method:'POST',
+        headers:{'xi-api-key':elevenLabsKey,'Content-Type':'application/json'},
+        body:JSON.stringify({text:line.text,model_id:'eleven_multilingual_v2'})
+      }).then(r=>{
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.blob();
+      }).then(blob=>{
+        elevenCache.set(cacheKey,URL.createObjectURL(blob));
+        done++;
+      }).catch(()=>{failed++;done++});
+    })).then(()=>{
+      const pct=Math.round((done/total)*100);
+      barEl.style.width=pct+'%';
+      statusEl.textContent=done+'/'+total+(failed?' ('+failed+' failed)':'');
+      setTimeout(nextBatch,200); // small delay between batches
+    });
+  }
+  nextBatch();
+}
+
+// Init ElevenLabs UI on load
+document.addEventListener('DOMContentLoaded',()=>{
+  const inp=document.getElementById('elevenKeyInput');
+  if(inp&&elevenLabsKey){
+    inp.value=elevenLabsKey;
+    onElevenKeyInput(elevenLabsKey);
+  }
+});
+
 let voiceEnabled=true,voiceQueue=[],voiceBusy=false,lastVoiceTime=0;
 const VOICE_COOLDOWN=800; // ms between voices
+const voiceMilestones=new Set(); // track fired milestone voices to avoid repeats
+let burnExceedsMRRCount=0; // track consecutive cycles where burn > MRR
 
-function speak(text,type){
-  if(!voiceEnabled||!window.speechSynthesis)return;
-  const now=performance.now();
-  if(now-lastVoiceTime<VOICE_COOLDOWN)return; // throttle
-  lastVoiceTime=now;
-  
-  // Cancel any current speech to keep it snappy
+function browserSpeak(text,type){
+  if(!window.speechSynthesis)return;
   window.speechSynthesis.cancel();
-  
   const utter=new SpeechSynthesisUtterance(text);
   const cfg=VOICE_CONFIG[type]||VOICE_CONFIG.system;
   utter.pitch=cfg.pitch;
   utter.rate=cfg.rate;
   utter.volume=0.7;
-  
-  // Try to pick a good voice
   const voices=window.speechSynthesis.getVoices();
   if(voices.length){
-    // Prefer English voices
     const eng=voices.filter(v=>v.lang.startsWith('en'));
     if(type==='ai_agent'){
       const robot=eng.find(v=>v.name.toLowerCase().includes('google'))||eng[0];
       if(robot)utter.voice=robot;
     } else if(eng.length){
-      // Use different voice indices per type for variety
       const typeIdx={sales_rep:0,sr_sales_rep:1,marketer:2,service_rep:3,system:0};
       const idx=(typeIdx[type]||0)%eng.length;
       utter.voice=eng[idx];
     }
   }
+  utter.onend=()=>{
+    voiceBusy=false;
+    if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+  };
+  utter.onerror=()=>{
+    voiceBusy=false;
+    if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+  };
   window.speechSynthesis.speak(utter);
+}
+
+function speak(text,type){
+  if(!voiceEnabled)return;
+  if(!elevenLabsKey&&!window.speechSynthesis)return;
+  if(voiceBusy){
+    if(voiceQueue.length<3)voiceQueue.push({text,type});
+    return;
+  }
+  voiceBusy=true;
+  if(elevenLabsKey){
+    elevenSpeak(text,type);
+  } else {
+    browserSpeak(text,type);
+  }
 }
 
 function speakRandom(lines,type){
@@ -403,6 +618,44 @@ function voiceSystem(event,subtype){
 
 // Pre-load voices
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
+
+// ---- M&A MECHANIC ----
+function isDistressed(p){
+  const sal=p.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);
+  return p.cash<50&&p.arr<sal;
+}
+function acquisitionCost(target){
+  const custVal=target.customers.reduce((s,c)=>s+c.value,0);
+  return Math.max(200,custVal*3);
+}
+function executeAcquisition(buyer,target){
+  const cost=acquisitionCost(target);
+  if(buyer.cash<cost)return false;
+  buyer.cash-=cost;
+  // Transfer all customers with reduced loyalty
+  target.customers.forEach(c=>{c.owner=buyer;c.loyalty=40;buyer.customers.push(c)});
+  const custCount=target.customers.length;
+  target.customers=[];
+  // Reset target
+  target.cash=500;target.units=[];target.buildings=target.buildings.filter(b=>b.type==='office').slice(0,1);
+  target.tech={};target.taBuilt=false;
+  // Give them 2 fresh sales reps
+  const hq=target.buildings[0];
+  if(hq){for(let i=0;i<2;i++){target.units.push(createUnit('sales_rep',target,hq.x+(Math.random()-0.5),hq.y+(Math.random()-0.5)))}}
+  return custCount;
+}
+function tryPlayerAcquire(){
+  const hasMA=player.buildings.some(b=>b.type==='m_and_a_dept'&&b.bp===undefined);
+  const target=players.find(p=>p!==player&&isDistressed(p));
+  if(!hasMA||!target)return;
+  const cost=acquisitionCost(target);
+  if(player.cash<cost){addLog('Not enough cash for acquisition ($'+cost+'K needed)','negative');return}
+  const n=executeAcquisition(player,target);
+  addLog('ACQUISITION of '+target.name+' COMPLETE! '+n+' customers acquired.','positive');
+  voiceSystem('acquisitionComplete');
+  if(winCondition==='elimination'){const alive=players.filter(p=>p.cash>0||p.arr>0||p.customers.length>0);if(alive.length===1&&alive[0]===player){endGame(true,'elimination');return}}
+  showToast('🏦 Hostile Takeover Complete!');
+}
 const TW=64,TH=32,MAP=50;
 let TOTAL_CUST=123;
 let canvas,ctx,mmCanvas,mmCtx,gameRunning=false,gameTime=0,speedMul=1;
@@ -414,17 +667,24 @@ let setupCash=500,setupReps=2,setupMarket=1,gameMode='standard',zeroSumType='ran
 let aiDifficulty=3,oppStart='slight'; // 1-5 difficulty, even/slight/incumbent
 let waypoints=[]; // {x,y,tile,customer,time,count}
 let mpMode=false,mpRole=null,mpRoom=null,mpPollTimer=null,mpReady=false;
-let mpActionQueue=[]; // actions to send to opponent
-let mpLastSync=0;
+let mpPid=0; // this client's player index in multiplayer
+let mpActionQueue=[]; // actions to send to opponents
+let mpLastSync={}; // {pid: lastSyncIndex} per remote player
+// ---- M&A STATE ----
+let aiAcqCountdown=0; // ticks remaining for AI hostile takeover attempt
+let aiAcquirer=null; // which AI player is attempting acquisition
+const AI_ACQ_DURATION=30; // ticks for AI acquisition countdown
 
 // ---- MULTIPLAYER ----
 function mpGenCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let r='';for(let i=0;i<4;i++)r+=c[Math.floor(Math.random()*c.length)];return r}
 
 async function mpCreate(){
-  mpRoom=mpGenCode();mpRole='green';
+  mpRoom=mpGenCode();mpRole='green';mpPid=0;
   const name=(document.getElementById('setupName').value||'STARTUP INC.').trim().toUpperCase();
+  const pc=getSetupVal('playerCountOptions')||2;
+  const slots=[{name,ready:true}];for(let i=1;i<pc;i++)slots.push({name:null,ready:false});
   const data={host:name,hostCash:getSetupVal('cashOptions')||500,hostReps:getSetupVal('repOptions')||2,
-    market:getSetupVal('marketOptions')||1,mode:getSetupVal('modeOptions')||'standard',zsType:getSetupVal('zeroSumSub')||'random',winCond:getSetupVal('winCondOptions')||'domination',guest:null,seed:Math.floor(Math.random()*999999),status:'waiting'};
+    market:getSetupVal('marketOptions')||1,mode:getSetupVal('modeOptions')||'standard',zsType:getSetupVal('zeroSumSub')||'random',winCond:getSetupVal('winCondOptions')||'domination',guest:null,seed:Math.floor(Math.random()*999999),status:'waiting',playerCount:pc,slots};
   try{
     await window.storage.set('crm-room:'+mpRoom,JSON.stringify(data),true);
     document.getElementById('mpLobby').style.display='none';
@@ -439,22 +699,28 @@ async function mpCreate(){
 async function mpJoin(){
   const code=document.getElementById('mpCodeInput').value.trim().toUpperCase();
   if(code.length!==4)return;
-  mpRoom=code;mpRole='red';
+  mpRoom=code;
   try{
     const res=await window.storage.get('crm-room:'+mpRoom,true);
     if(!res)return alert('Room not found!');
     const data=JSON.parse(res.value);
-    if(data.status!=='waiting')return alert('Room already full!');
+    if(data.status==='started')return alert('Game already started!');
+    // Find first empty slot
+    const slotIdx=data.slots.findIndex(s=>s.name===null);
+    if(slotIdx<0)return alert('Room is full!');
+    mpPid=slotIdx;mpRole=slotIdx===0?'green':'red'; // backward compat
     const name=(document.getElementById('setupName').value||'RIVAL CORP.').trim().toUpperCase();
-    data.guest=name;data.status='ready';
+    data.slots[slotIdx]={name,ready:true};
+    // If all human slots filled, mark ready
+    const allFilled=data.slots.every(s=>s.name!==null);
+    if(allFilled)data.status='ready';
     await window.storage.set('crm-room:'+mpRoom,JSON.stringify(data),true);
     document.getElementById('mpLobby').style.display='none';
     document.getElementById('mpWaiting').style.display='block';
     document.getElementById('mpRoomDisplay').textContent=mpRoom;
-    document.getElementById('mpStatus').textContent='✓ Connected! Waiting for host to start...';
+    document.getElementById('mpStatus').textContent='✓ Connected! Slot '+(slotIdx+1)+'. Waiting for host to start...';
     document.getElementById('mpStatus').className='mp-status ready';
     mpReady=true;
-    // Store own settings
     mpPollLobby();
   }catch(e){alert('Failed to join: '+e.message)}
 }
@@ -465,15 +731,20 @@ async function mpPollLobby(){
     const res=await window.storage.get('crm-room:'+mpRoom,true);
     if(!res)return;
     const data=JSON.parse(res.value);
-    if(data.status==='ready'&&mpRole==='green'){
-      document.getElementById('mpStatus').textContent='✓ '+data.guest+' joined! Ready to start.';
-      document.getElementById('mpStatus').className='mp-status ready';
-      document.getElementById('startMpBtn').style.display='block';
-      document.getElementById('startSoloBtn').style.display='none';
-      mpReady=true;return;
-    }
-    if(data.status==='started'){
-      if(mpRole==='red')launchMultiplayer();return;
+    const filledNames=data.slots.filter(s=>s.name).map(s=>s.name);
+    const filledCount=filledNames.length;
+    if(mpPid===0){
+      // Host sees who joined
+      if(filledCount>1){
+        document.getElementById('mpStatus').textContent='✓ '+filledNames.slice(1).join(', ')+' joined! ('+filledCount+'/'+data.playerCount+')';
+        document.getElementById('mpStatus').className='mp-status ready';
+        document.getElementById('startMpBtn').style.display='block';
+        document.getElementById('startSoloBtn').style.display='none';
+        mpReady=true;
+      }
+    } else {
+      if(data.status==='started'){launchMultiplayer();return}
+      document.getElementById('mpStatus').textContent='Waiting... ('+filledCount+'/'+data.playerCount+' players)';
     }
   }catch(e){}
   setTimeout(mpPollLobby,1000);
@@ -485,18 +756,24 @@ async function launchMultiplayer(){
     const res=await window.storage.get('crm-room:'+mpRoom,true);
     if(!res)return;
     const data=JSON.parse(res.value);
-    if(mpRole==='green'){data.status='started';await window.storage.set('crm-room:'+mpRoom,JSON.stringify(data),true)}
+    if(mpPid===0){data.status='started';await window.storage.set('crm-room:'+mpRoom,JSON.stringify(data),true)}
     setupCash=data.hostCash;setupReps=data.hostReps;setupMarket=data.market;gameMode=data.mode||'standard';zeroSumType=data.zsType||'random';winCondition=data.winCond||'domination';
-    const myName=mpRole==='green'?data.host:data.guest;
-    const oppName=mpRole==='green'?data.guest:data.host;
-    player.name=myName;player.cash=setupCash;player.color=mpRole==='green'?'#00ff41':'#ff3333';
-    enemy.name=oppName;enemy.cash=setupCash;enemy.color=mpRole==='green'?'#ff3333':'#00ff41';
-    enemy.tech={};enemy.arr=0;
+    playerCount=data.playerCount||2;localIdx=mpPid;
+    const myName=data.slots[mpPid].name;
+    player.name=myName;player.cash=setupCash;player.color=PLAYER_COLORS[mpPid];
+    // Initialize remote players from slots
+    players=[];
+    data.slots.forEach((slot,i)=>{
+      if(i===mpPid){players.push(player);return}
+      const rp={pid:i,name:slot.name||(HQ_CITIES[i]+' AI'),cash:setupCash,mrr:0,arr:0,
+        customers:[],units:[],buildings:[],tech:{},color:PLAYER_COLORS[i],
+        hqCity:HQ_CITIES[i],taBuilt:false,isAI:!slot.name,techBuild:{}};
+      players.push(rp);
+    });
+    enemy=players.find(p=>p!==player)||players[1]; // backward compat
     document.getElementById('companyName').textContent=myName;
-    // Use seed for deterministic customer generation
     mpSeed=data.seed;
     startGame(true);
-    // Start sync loop
     mpSyncLoop();
   }catch(e){alert('Failed to start: '+e.message)}
 }
@@ -508,69 +785,75 @@ async function mpSyncLoop(){
   try{
     // Write our actions
     if(mpActionQueue.length>0){
-      const key='crm-actions:'+mpRoom+':'+mpRole;
+      const key='crm-actions:'+mpRoom+':'+mpPid;
       let existing=[];
       try{const r=await window.storage.get(key,true);if(r)existing=JSON.parse(r.value)}catch(e){}
       existing.push(...mpActionQueue);
       await window.storage.set(key,JSON.stringify(existing),true);
       mpActionQueue=[];
     }
-    // Read opponent actions
-    const oppRole=mpRole==='green'?'red':'green';
-    const oppKey='crm-actions:'+mpRoom+':'+oppRole;
-    try{
-      const r=await window.storage.get(oppKey,true);
-      if(r){
-        const actions=JSON.parse(r.value);
-        if(actions.length>mpLastSync){
-          for(let i=mpLastSync;i<actions.length;i++)mpApplyAction(actions[i]);
-          mpLastSync=actions.length;
+    // Read all remote players' actions
+    for(let pid=0;pid<players.length;pid++){
+      if(pid===mpPid||players[pid].isAI)continue;
+      const oppKey='crm-actions:'+mpRoom+':'+pid;
+      try{
+        const r=await window.storage.get(oppKey,true);
+        if(r){
+          const actions=JSON.parse(r.value);
+          const last=mpLastSync[pid]||0;
+          if(actions.length>last){
+            for(let i=last;i<actions.length;i++)mpApplyAction(actions[i],pid);
+            mpLastSync[pid]=actions.length;
+          }
         }
-      }
-    }catch(e){}
-    // Write our state summary for opponent to see unit positions
-    const stateKey='crm-state:'+mpRoom+':'+mpRole;
+      }catch(e){}
+    }
+    // Write our state summary
+    const stateKey='crm-state:'+mpRoom+':'+mpPid;
     const myState={cash:Math.floor(player.cash),mrr:Math.floor(player.arr),custs:player.customers.length,
       units:player.units.map(u=>({type:u.type,x:Math.round(u.x*10)/10,y:Math.round(u.y*10)/10,state:u.state})),
       buildings:player.buildings.map(b=>({type:b.type,x:b.x,y:b.y})),t:gameTime};
     await window.storage.set(stateKey,JSON.stringify(myState),true);
-    // Read opponent state
-    const oppStateKey='crm-state:'+mpRoom+':'+oppRole;
-    try{
-      const r=await window.storage.get(oppStateKey,true);
-      if(r){
-        const os=JSON.parse(r.value);
-        // Sync enemy units positions
-        while(enemy.units.length<os.units.length){
-          const eu=os.units[enemy.units.length];
-          enemy.units.push(createUnit(eu.type,enemy,eu.x,eu.y));
+    // Read all remote players' state
+    for(let pid=0;pid<players.length;pid++){
+      if(pid===mpPid||players[pid].isAI)continue;
+      const rp=players[pid];
+      const oppStateKey='crm-state:'+mpRoom+':'+pid;
+      try{
+        const r=await window.storage.get(oppStateKey,true);
+        if(r){
+          const os=JSON.parse(r.value);
+          while(rp.units.length<os.units.length){
+            const eu=os.units[rp.units.length];
+            rp.units.push(createUnit(eu.type,rp,eu.x,eu.y));
+          }
+          os.units.forEach((eu,i)=>{if(rp.units[i]){
+            rp.units[i].px=rp.units[i].x;rp.units[i].py=rp.units[i].y;
+            rp.units[i].x=eu.x;rp.units[i].y=eu.y;rp.units[i].state=eu.state}});
+          while(rp.buildings.length<os.buildings.length){
+            const eb=os.buildings[rp.buildings.length];
+            rp.buildings.push({type:eb.type,x:eb.x,y:eb.y});
+          }
+          rp.cash=os.cash;rp.arr=os.arr;
         }
-        os.units.forEach((eu,i)=>{if(enemy.units[i]){
-          enemy.units[i].px=enemy.units[i].x;enemy.units[i].py=enemy.units[i].y;
-          enemy.units[i].x=eu.x;enemy.units[i].y=eu.y;enemy.units[i].state=eu.state}});
-        // Sync buildings
-        while(enemy.buildings.length<os.buildings.length){
-          const eb=os.buildings[enemy.buildings.length];
-          enemy.buildings.push({type:eb.type,x:eb.x,y:eb.y});
-        }
-        enemy.cash=os.cash;enemy.arr=os.arr;
-      }
-    }catch(e){}
+      }catch(e){}
+    }
   }catch(e){}
   setTimeout(mpSyncLoop,250);
 }
 
-function mpApplyAction(a){
+function mpApplyAction(a,fromPid){
+  const rp=players[fromPid];if(!rp)return;
   if(a.type==='build'){
-    if(BLDGS[a.btype]){const b=enemy.buildings[0];if(b)enemy.buildings.push({type:a.btype,x:b.x+(a.ox||0),y:b.y+(a.oy||0)})}
+    if(BLDGS[a.btype]){const b=rp.buildings[0];if(b)rp.buildings.push({type:a.btype,x:b.x+(a.ox||0),y:b.y+(a.oy||0)})}
   } else if(a.type==='hire'){
-    if(UNITS_DEF[a.utype]){const b=enemy.buildings[0];if(b)enemy.units.push(createUnit(a.utype,enemy,b.x+(Math.random()-0.5)*2,b.y+(Math.random()-0.5)*2))}
+    if(UNITS_DEF[a.utype]){const b=rp.buildings[0];if(b)rp.units.push(createUnit(a.utype,rp,b.x+(Math.random()-0.5)*2,b.y+(Math.random()-0.5)*2))}
   } else if(a.type==='research'){
-    if(TECHS[a.tech])enemy.tech[a.tech]=true;
+    if(TECHS[a.tech])rp.tech[a.tech]=true;
   } else if(a.type==='fire'){
-    if(a.uid>=0&&a.uid<enemy.units.length)enemy.units.splice(a.uid,1);
+    if(a.uid>=0&&a.uid<rp.units.length)rp.units.splice(a.uid,1);
   } else if(a.type==='command'){
-    const u=enemy.units[a.uid];if(!u)return;
+    const u=rp.units[a.uid];if(!u)return;
     if(a.cid!==undefined){const c=allCust[a.cid];if(c){u.target=c;u.tx=c.x;u.ty=c.y;u.state='moving'}}
     else{u.tx=a.tx;u.ty=a.ty;u.target=null;u.state='moving'}
   }
@@ -609,14 +892,22 @@ function launchGame(){
   oppStart=getSetupVal('oppStartOptions')||'slight';
   winCondition=getSetupVal('winCondOptions')||'domination';
   aiDifficulty=parseInt(document.getElementById('aiDiffSlider').value)||3;
+  playerCount=getSetupVal('playerCountOptions')||2;
   player.name=name;player.cash=setupCash;
   document.getElementById('companyName').textContent=name;
   startGame();
 }
 
-const player={name:'STARTUP INC.',cash:500,mrr:0,customers:[],units:[],buildings:[],tech:{},color:'#00ff41',hqCity:'Dublin',taBuilt:false};
-const enemy={name:'MEGACRM CORP.',cash:800,mrr:120,customers:[],units:[],buildings:[],tech:{basic_crm:true},color:'#ff3333',hqCity:'London',taBuilt:false};
+const PLAYER_COLORS=['#00ff41','#ff3333','#3388ff','#ffcc00'];
+const PLAYER_RGBS=['0,255,65','255,51,51','51,136,255','255,204,0'];
+const HQ_CITIES=['Dublin','London','Edinburgh','Cork'];
+let players=[],localIdx=0,playerCount=2;
+let player={name:'STARTUP INC.',cash:500,mrr:0,arr:0,customers:[],units:[],buildings:[],tech:{},color:'#00ff41',hqCity:'Dublin',taBuilt:false,isAI:false,pid:0};
+let enemy={name:'MEGACRM CORP.',cash:800,mrr:120,arr:0,customers:[],units:[],buildings:[],tech:{basic_crm:true},color:'#ff3333',hqCity:'London',taBuilt:false,isAI:true,pid:1};
 let freeCust=[],allCust=[];
+function getOpponents(p){return players.filter(o=>o!==p)}
+function getAllEnemyUnits(p){return players.filter(o=>o!==p).flatMap(o=>o.units)}
+function getAllEnemyCustomers(p){return players.filter(o=>o!==p).flatMap(o=>o.customers)}
 
 // UK & Ireland cities with map positions and customer density
 // Convert real lat/lng to game tile coords
@@ -710,7 +1001,8 @@ const BLDGS={
   research_lab:{name:'R&D Lab',icon:'🔬',cost:300,desc:'Unlock research',requires:'office',buildTime:15},
   hq_upgrade:{name:'HQ Upgrade',icon:'🏛',cost:500,desc:'+10 unit capacity',requires:'research_lab',buildTime:20},
   ai_datacenter:{name:'AI Data Center',icon:'🤖',cost:600,desc:'Unlock AI tree',requires:'research_lab',buildTime:25},
-  hr_dept:{name:'HR Department',icon:'👩‍💼',cost:250,desc:'Hire Talent Acquisition',requires:'office',buildTime:15}
+  hr_dept:{name:'HR Department',icon:'👩‍💼',cost:250,desc:'Hire Talent Acquisition',requires:'office',buildTime:15},
+  m_and_a_dept:{name:'M&A Dept',icon:'🏦',cost:400,desc:'Enables hostile takeovers',requires:'research_lab',buildTime:20}
 };
 const UNITS_DEF={
   sales_rep:{name:'Sales Rep',icon:'🕴',cost:50,salary:8,speed:1,power:1,desc:'Converts free prospects',requires:'office',buildTime:5},
@@ -804,35 +1096,30 @@ function generateCustomers(){
   TOTAL_CUST=allCust.length;
   if(gameMode==='zero_sum'){
     if(zeroSumType==='territorial'){
-      // Territorial — assign by proximity to each HQ
-      const playerHQ=mpMode&&mpRole==='red'?CITIES.find(c=>c.name==='London'):CITIES.find(c=>c.name==='Dublin');
-      const enemyHQ=mpMode&&mpRole==='red'?CITIES.find(c=>c.name==='Dublin'):CITIES.find(c=>c.name==='London');
-      // Score each customer by distance ratio: closer to player = player's
-      const scored=freeCust.map(c=>{
-        const dp=Math.sqrt((c.x-playerHQ.x)**2+(c.y-playerHQ.y)**2);
-        const de=Math.sqrt((c.x-enemyHQ.x)**2+(c.y-enemyHQ.y)**2);
-        return{c,ratio:dp/(dp+de)}; // 0=near player, 1=near enemy
+      // Territorial — assign each customer to nearest HQ
+      freeCust.forEach(c=>{
+        let best=null,bestD=Infinity;
+        players.forEach(p=>{const hq=CITIES.find(ct=>ct.name===p.hqCity);if(!hq)return;const d=Math.sqrt((c.x-hq.x)**2+(c.y-hq.y)**2);if(d<bestD){bestD=d;best=p}});
+        if(best){c.owner=best;c.loyalty=80;best.customers.push(c)}
       });
-      scored.sort((a,b)=>a.ratio-b.ratio);
-      const half=Math.floor(scored.length/2);
-      scored.slice(0,half).forEach(s=>{s.c.owner=player;s.c.loyalty=80;player.customers.push(s.c);const i=freeCust.indexOf(s.c);if(i>=0)freeCust.splice(i,1)});
-      scored.slice(half).forEach(s=>{s.c.owner=enemy;s.c.loyalty=80;enemy.customers.push(s.c);const i=freeCust.indexOf(s.c);if(i>=0)freeCust.splice(i,1)});
+      freeCust.length=0;
     } else {
-      // Random 50/50 split
+      // Random even split among all players
       const shuffled=[...freeCust];for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(rng()*i);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]}
-      const half=Math.floor(shuffled.length/2);
-      shuffled.slice(0,half).forEach(c=>{c.owner=player;c.loyalty=80;player.customers.push(c);const i=freeCust.indexOf(c);if(i>=0)freeCust.splice(i,1)});
-      shuffled.slice(half).forEach(c=>{c.owner=enemy;c.loyalty=80;enemy.customers.push(c);const i=freeCust.indexOf(c);if(i>=0)freeCust.splice(i,1)});
+      shuffled.forEach((c,i)=>{const p=players[i%players.length];c.owner=p;c.loyalty=80;p.customers.push(c)});
+      freeCust.length=0;
     }
-    player.arr=player.customers.reduce((s,c)=>s+c.value,0);
-    enemy.arr=enemy.customers.reduce((s,c)=>s+c.value,0);
+    players.forEach(p=>{p.arr=p.customers.reduce((s,c)=>s+c.value,0)});
   } else if(!mpMode){
-    // AI starts with London customers
+    // Each AI starts with customers near their HQ
+    const aiPlayers=players.filter(p=>p.isAI);
     const enemyCount=Math.max(2,Math.round(8*setupMarket));
-    const londonCusts=freeCust.filter(c=>c.city==='London').slice(0,enemyCount);
-    londonCusts.forEach(c=>{c.owner=enemy;c.loyalty=80;enemy.customers.push(c);
-      const i=freeCust.indexOf(c);if(i>=0)freeCust.splice(i,1)});
-    enemy.arr=enemy.customers.reduce((s,c)=>s+c.value,0);
+    aiPlayers.forEach(aiP=>{
+      const nearby=freeCust.filter(c=>c.city===aiP.hqCity).slice(0,enemyCount);
+      nearby.forEach(c=>{c.owner=aiP;c.loyalty=80;aiP.customers.push(c);
+        const i=freeCust.indexOf(c);if(i>=0)freeCust.splice(i,1)});
+      aiP.arr=aiP.customers.reduce((s,c)=>s+c.value,0);
+    });
   }
 }
 
@@ -863,61 +1150,79 @@ function startGame(isMultiplayer){
   resizeCanvas();window.addEventListener('resize',resizeCanvas);
   prerenderMap();generateCustomers();
 
+  // ---- INITIALIZE PLAYERS ARRAY ----
+  const AI_NAMES=['MEGACRM CORP.','CLOUDSELL INC.','DATAPIPE CO.'];
+  // Reset player object
+  player.customers=[];player.units=[];player.buildings=[];player.tech={};player.taBuilt=false;player.isAI=false;player.pid=0;player.color=PLAYER_COLORS[0];player.arr=0;
+  players=[player];
+  localIdx=0;
+
+  // Create AI/remote opponents
+  for(let pi=1;pi<playerCount;pi++){
+    const aiP={name:AI_NAMES[pi-1]||('RIVAL '+pi),cash:800,mrr:0,arr:0,customers:[],units:[],buildings:[],tech:{},
+      color:PLAYER_COLORS[pi],hqCity:HQ_CITIES[pi]||HQ_CITIES[1],taBuilt:false,isAI:!mpMode,pid:pi};
+    players.push(aiP);
+  }
+  // Backward-compat: enemy = first opponent
+  enemy=players[1];
+
   // My HQ
-  const myCity=mpMode&&mpRole==='red'?CITIES.find(c=>c.name==='London'):CITIES.find(c=>c.name==='Dublin');
+  const myCity=CITIES.find(c=>c.name===player.hqCity);
   player.buildings.push({type:'office',x:myCity.x,y:myCity.y});
   for(let i=0;i<setupReps;i++){
     player.units.push(createUnit('sales_rep',player,myCity.x+(Math.random()-0.5)*1.5,myCity.y+(Math.random()-0.5)*1.5));
   }
 
   if(!mpMode){
-    // AI enemy HQ in London — scaled by opponent start setting
-    const london=CITIES.find(c=>c.name==='London');
-    enemy.buildings.push({type:'office',x:london.x,y:london.y});
-    if(oppStart==='even'){
-      // Same as player
-      enemy.cash=setupCash;
-      for(let i=0;i<setupReps;i++){
-        enemy.units.push(createUnit('sales_rep',enemy,london.x+(Math.random()-0.5)*1.5,london.y+(Math.random()-0.5)*1.5));
+    // Setup each AI opponent
+    for(let pi=1;pi<playerCount;pi++){
+      const aiP=players[pi];
+      const hqCity=CITIES.find(c=>c.name===aiP.hqCity);
+      if(!hqCity)continue;
+      aiP.buildings.push({type:'office',x:hqCity.x,y:hqCity.y});
+      if(oppStart==='even'){
+        aiP.cash=setupCash;
+        for(let i=0;i<setupReps;i++){
+          aiP.units.push(createUnit('sales_rep',aiP,hqCity.x+(Math.random()-0.5)*1.5,hqCity.y+(Math.random()-0.5)*1.5));
+        }
+      } else if(oppStart==='slight'){
+        aiP.buildings.push({type:'marketing_dept',x:hqCity.x-1,y:hqCity.y});
+        aiP.cash=Math.round(setupCash*1.5);
+        const enemyReps=Math.max(setupReps+1,Math.round(3*setupMarket));
+        for(let i=0;i<enemyReps;i++){
+          aiP.units.push(createUnit('sales_rep',aiP,hqCity.x+(Math.random()-0.5)*1.5,hqCity.y+(Math.random()-0.5)*1.5));
+        }
+      } else {
+        aiP.buildings.push({type:'marketing_dept',x:hqCity.x-1,y:hqCity.y});
+        aiP.buildings.push({type:'research_lab',x:hqCity.x+1,y:hqCity.y+1});
+        aiP.buildings.push({type:'support_center',x:hqCity.x-1,y:hqCity.y+1});
+        aiP.cash=Math.round(setupCash*2.5);
+        aiP.tech.basic_crm=true;
+        const enemyReps=Math.max(4,Math.round(5*setupMarket));
+        for(let i=0;i<enemyReps;i++){
+          const t=i<2?'sales_rep':i<3?'marketer':'sales_rep';
+          aiP.units.push(createUnit(t,aiP,hqCity.x+(Math.random()-0.5)*2,hqCity.y+(Math.random()-0.5)*2));
+        }
+        aiP.units.push(createUnit('service_rep',aiP,hqCity.x+0.5,hqCity.y-0.5));
       }
-    } else if(oppStart==='slight'){
-      // Head start — extra building, more reps, more cash
-      enemy.buildings.push({type:'marketing_dept',x:london.x-1,y:london.y});
-      enemy.cash=Math.round(setupCash*1.5);
-      const enemyReps=Math.max(setupReps+1,Math.round(3*setupMarket));
-      for(let i=0;i<enemyReps;i++){
-        enemy.units.push(createUnit('sales_rep',enemy,london.x+(Math.random()-0.5)*1.5,london.y+(Math.random()-0.5)*1.5));
-      }
-    } else {
-      // Incumbent — full established empire
-      enemy.buildings.push({type:'marketing_dept',x:london.x-1,y:london.y});
-      enemy.buildings.push({type:'research_lab',x:london.x+1,y:london.y+1});
-      enemy.buildings.push({type:'support_center',x:london.x-1,y:london.y+1});
-      enemy.cash=Math.round(setupCash*2.5);
-      enemy.tech.basic_crm=true;
-      const enemyReps=Math.max(4,Math.round(5*setupMarket));
-      for(let i=0;i<enemyReps;i++){
-        const t=i<2?'sales_rep':i<3?'marketer':'sales_rep';
-        enemy.units.push(createUnit(t,enemy,london.x+(Math.random()-0.5)*2,london.y+(Math.random()-0.5)*2));
-      }
-      // Service rep to defend
-      enemy.units.push(createUnit('service_rep',enemy,london.x+0.5,london.y-0.5));
     }
   } else {
-    // Multiplayer — opponent starts at their city, synced via storage
-    const oppCity=mpRole==='green'?CITIES.find(c=>c.name==='London'):CITIES.find(c=>c.name==='Dublin');
-    enemy.buildings.push({type:'office',x:oppCity.x,y:oppCity.y});
-    enemy.cash=setupCash;
+    // Multiplayer — remote players start at their cities, synced via storage
+    players.filter(p=>p!==player).forEach(rp=>{
+      const rpCity=CITIES.find(c=>c.name===rp.hqCity);
+      if(rpCity){rp.buildings.push({type:'office',x:rpCity.x,y:rpCity.y});rp.cash=setupCash}
+    });
   }
 
   const iso=toIso(myCity.x,myCity.y);camX=iso.x-window.innerWidth/2;camY=iso.y-window.innerHeight/2;
   setupInput();updateUI();gameRunning=true;
   if(mpMode){
-    addLog(player.name+' vs '+enemy.name+' — HEAD TO HEAD!','neutral');
-    addLog('You are '+mpRole.toUpperCase()+'. HQ: '+(mpRole==='green'?'Dublin':'London'),'neutral');
+    const oppNames=players.filter(p=>p!==player).map(p=>p.name).join(' vs ');
+    addLog(player.name+' vs '+oppNames+' — HEAD TO HEAD!','neutral');
+    addLog('You are Player '+(mpPid+1)+'. HQ: '+player.hqCity,'neutral');
   } else {
-    addLog(player.name+' HQ established in Dublin. Go win the UK & Ireland market!','neutral');
-    addLog(enemy.name+' dominates London with '+enemy.customers.length+' accounts.','negative');
+    addLog(player.name+' HQ established in '+player.hqCity+'. Go win the UK & Ireland market!','neutral');
+    players.filter(p=>p!==player).forEach(p=>addLog(p.name+' based in '+p.hqCity+'.','negative'));
   }
   requestAnimationFrame(gameLoop);
 }
@@ -981,14 +1286,14 @@ function handleClick(e){const wx=e.clientX/zoom+camX,wy=(e.clientY-48)/zoom+camY
   // Check if clicking own unit — select it
   for(const u of player.units){const i=toIso(u.x,u.y);if(Math.abs(wx-i.x)<18&&Math.abs(wy-i.y)<18){selectedUnit=u;selectedUnits=[];inspectedUnit=null;voiceSelect(u);return}}
   // Check if clicking enemy unit — inspect it
-  for(const u of enemy.units){const i=toIso(u.x,u.y);if(Math.abs(wx-i.x)<18&&Math.abs(wy-i.y)<18){inspectedUnit=u;selectedUnit=null;selectedUnits=[];return}}
+  for(const u of getAllEnemyUnits(player)){const i=toIso(u.x,u.y);if(Math.abs(wx-i.x)<18&&Math.abs(wy-i.y)<18){inspectedUnit=u;selectedUnit=null;selectedUnits=[];return}}
   inspectedUnit=null;
   // If we have selected units (multi), command them
   if(selectedUnits.length>0){cmdMulti(selectedUnits,wx,wy);return}
   if(selectedUnit)cmdUnit(selectedUnit,wx,wy)}
 function handleDblClick(e){const wx=e.clientX/zoom+camX,wy=(e.clientY-48)/zoom+camY;
   // Double-click any unit to open inspector
-  for(const u of [...player.units,...enemy.units]){const i=toIso(u.x,u.y);if(Math.abs(wx-i.x)<18&&Math.abs(wy-i.y)<18){showUnitInspector(u);return}}
+  for(const u of players.flatMap(p=>p.units)){const i=toIso(u.x,u.y);if(Math.abs(wx-i.x)<18&&Math.abs(wy-i.y)<18){showUnitInspector(u);return}}
 }
 function handleRClick(e){const wx=e.clientX/zoom+camX,wy=(e.clientY-48)/zoom+camY;
   if(selectedUnits.length>0)cmdMulti(selectedUnits,wx,wy);
@@ -1025,7 +1330,7 @@ let lastT=0,tickAcc=0;
 function gameLoop(t){if(!gameRunning)return;const dt=Math.min(t-lastT,100);lastT=t;tickAcc+=dt*speedMul;
   while(tickAcc>=1000){tickAcc-=1000;
     // Store previous positions for interpolation
-    [...player.units,...enemy.units].forEach(u=>{u.px=u.x;u.py=u.y;u.pAnim=u.anim;u.pProgress=u.progress;if(u.type==='talent_acq'){u.pRecruitProgress=u.recruitProgress;u.pNegotiationProgress=u.negotiationProgress}});
+    players.flatMap(p=>p.units).forEach(u=>{u.px=u.x;u.py=u.y;u.pAnim=u.anim;u.pProgress=u.progress;if(u.type==='talent_acq'){u.pRecruitProgress=u.recruitProgress;u.pNegotiationProgress=u.negotiationProgress}});
     allCust.forEach(c=>{c.px=c.x;c.py=c.y});
     gameTick();
   }
@@ -1033,13 +1338,13 @@ function gameLoop(t){if(!gameRunning)return;const dt=Math.min(t-lastT,100);lastT
 function gameTick(){
   gameTime++;
   // Build progress for buildings, units, and tech
-  [player,enemy].forEach(p=>{
+  players.forEach(p=>{
     p.buildings.forEach(b=>{if(b.bp!==undefined&&b.bp<b.bt){b.bp++;if(b.bp>=b.bt){delete b.bp;delete b.bt;if(p===player){addLog(BLDGS[b.type].name+' complete!','positive');voiceSystem('buildComplete');lastBtnRebuild=0}}}});
     p.units.forEach(u=>{if(u.state==='building'&&u.bp!==undefined){u.bp++;if(u.bp>=u.bt){delete u.bp;delete u.bt;u.state='idle';if(p===player){addLog(UNITS_DEF[u.type].name+' ready!','positive');voiceSystem('trainComplete',u.type);lastBtnRebuild=0}}}});
     if(p.techBuild){Object.keys(p.techBuild).forEach(k=>{const tb=p.techBuild[k];tb.bp++;if(tb.bp>=tb.bt){p.tech[k]=true;delete p.techBuild[k];if(p===player){addLog(TECHS[k].name+' researched!','positive');voiceSystem('researchComplete');lastBtnRebuild=0}}})}
   });
-  if(gameTime%5===0)[player,enemy].forEach(p=>{const sal=p.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);p.cash-=sal;p.arr=p.customers.reduce((s,c)=>s+c.value*(p.tech.enterprise===true?2:1),0);p.cash+=p.arr});
-  [...player.units,...enemy.units].forEach(actUnit);
+  if(gameTime%5===0)players.forEach(p=>{const sal=p.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);p.cash-=sal;p.arr=p.customers.reduce((s,c)=>s+c.value*(p.tech.enterprise===true?2:1),0);p.cash+=p.arr});
+  players.flatMap(p=>p.units).forEach(actUnit);
   // Loyalty decay — owned customers slowly lose loyalty without CS rep nearby
   allCust.forEach(c=>{
     if(c.owner){
@@ -1050,14 +1355,15 @@ function gameTick(){
         if(c.loyalty<=0){
           c.loyalty=0;const p=c.owner;const i=p.customers.indexOf(c);if(i>=0)p.customers.splice(i,1);
           c.owner=null;freeCust.push(c);
-          addLog((p===player?'Your':'Enemy')+'  customer #'+c.id+' in '+c.city+' churned!',p===player?'negative':'positive');
+          addLog((p===player?'Your':p.name+"'s")+'  customer #'+c.id+' in '+c.city+' churned!',p===player?'negative':'positive');
+          if(p===player)voiceSystem('customerChurned');
         }
       }
     }
   });
   // Growing market — spawn new customers periodically (marketers boost spawn rate near their position)
   if(gameMode==='growing'&&gameTime%8===0){
-    const allMarketers=[...player.units,...enemy.units].filter(u=>u.type==='marketer'&&u.state!=='building');
+    const allMarketers=players.flatMap(p=>p.units).filter(u=>u.type==='marketer'&&u.state!=='building');
     const baseChance=0.4;
     // Each marketer near a city boosts spawn chance by 15%
     const spawnCity=()=>{
@@ -1075,28 +1381,56 @@ function gameTick(){
     };
     spawnCity();
   }
-  if(!mpMode&&gameTime%3===0)aiTick();
-  // Win condition checks
+  if(gameTime%3===0)players.filter(p=>p.isAI).forEach(aiP=>aiTick(aiP));
+  // ---- AI ACQUISITION COUNTDOWN ----
+  if(aiAcqCountdown>0){
+    aiAcqCountdown--;
+    if(!isDistressed(player)){aiAcqCountdown=0;addLog('Takeover averted! Balance sheet stabilized.','positive')}
+    else if(aiAcqCountdown<=0){
+      const acq=aiAcquirer||enemy;
+      const n=executeAcquisition(acq,player);
+      addLog('HOSTILE TAKEOVER! '+acq.name+' acquired '+n+' of your customers!','negative');
+      voiceSystem('acquisitionComplete');
+      if(winCondition==='elimination'){endGame(false,'elimination');return}
+    } else if(aiAcqCountdown%10===0){
+      addLog('⚠ Takeover in '+aiAcqCountdown+' ticks! Cash: $'+Math.floor(player.cash)+'K','negative');
+    }
+  }
+  // ---- VOICE MILESTONES ----
+  const _pShare=TOTAL_CUST>0?player.customers.length/TOTAL_CUST:0;
+  const _eShare=TOTAL_CUST>0?Math.max(...getOpponents(player).map(p=>p.customers.length))/TOTAL_CUST:0;
+  if(_pShare>=0.25&&!voiceMilestones.has('share25')){voiceMilestones.add('share25');voiceSystem('winCondProgress')}
+  if(_pShare>=0.50&&!voiceMilestones.has('share50')){voiceMilestones.add('share50');speakRandom(["You control half the market!","Fifty percent market share. Dominant."],'system')}
+  if(_pShare>=0.75&&!voiceMilestones.has('share75')){voiceMilestones.add('share75');speakRandom(["Seventy-five percent! Total domination is near."],'system')}
+  if(player.cash<100&&player.cash>0&&!voiceMilestones.has('lowCash')){voiceMilestones.add('lowCash');voiceSystem('lowCash')}
+  if(player.cash>=100&&voiceMilestones.has('lowCash'))voiceMilestones.delete('lowCash'); // allow re-fire if cash recovers and drops again
+  if(player.customers.length===1&&!voiceMilestones.has('firstDeal')){voiceMilestones.add('firstDeal');speakRandom(["First deal! We're in business!","Our first customer. Let's get more!"],'system')}
+  if(_eShare>=0.50&&!voiceMilestones.has('enemyDom')){voiceMilestones.add('enemyDom');voiceSystem('enemyGrowing')}
+  // Idle units warning
+  if(gameTime%20===0){const idleCount=player.units.filter(u=>u.state==='idle'&&u.type!=='service_rep').length;if(idleCount>=2&&!voiceMilestones.has('idle'+gameTime)){voiceMilestones.add('idle'+gameTime);speakRandom(["Idle reps detected. Deploy them!","We have reps sitting around. Put them to work."],'system')}}
+  // Burn > MRR warning
+  if(gameTime%5===0){const sal=player.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);if(sal>player.arr&&player.arr>0){burnExceedsMRRCount++}else{burnExceedsMRRCount=0}if(burnExceedsMRRCount>=3&&!voiceMilestones.has('bleeding')){voiceMilestones.add('bleeding');speakRandom(["We're bleeding cash.","Burn rate exceeds revenue. Cut costs or close deals."],'system')}}
+  // Win condition checks (N-player)
   const pShare=TOTAL_CUST>0?player.customers.length/TOTAL_CUST:0;
-  const eShare=TOTAL_CUST>0?enemy.customers.length/TOTAL_CUST:0;
   if(winCondition==='domination'){
     if(pShare>=0.75){endGame(true,'domination');return}
-    if(eShare>=0.75){endGame(false,'domination');return}
+    for(const op of players){if(op!==player&&TOTAL_CUST>0&&op.customers.length/TOTAL_CUST>=0.75){endGame(false,'domination');return}}
   } else if(winCondition==='mrr_race'){
     if(player.arr>=500){endGame(true,'mrr_race');return}
-    if(enemy.arr>=500){endGame(false,'mrr_race');return}
-    if(gameTime>=500){endGame(player.arr>=enemy.arr,'mrr_timeout');return}
+    for(const op of players){if(op!==player&&op.arr>=500){endGame(false,'mrr_race');return}}
+    if(gameTime>=500){const best=players.reduce((a,b)=>a.arr>=b.arr?a:b);endGame(best===player,'mrr_timeout');return}
   } else if(winCondition==='elimination'){
     if(player.cash<=0&&player.arr<=0){endGame(false,'elimination');return}
-    if(enemy.cash<=0&&enemy.arr<=0){endGame(true,'elimination');return}
+    const alive=players.filter(p=>p.cash>0||p.arr>0||p.customers.length>0);
+    if(alive.length===1&&alive[0]===player){endGame(true,'elimination');return}
+    if(alive.length===1&&alive[0]!==player){endGame(false,'elimination');return}
   } else if(winCondition==='conquest'){
     if(TOTAL_CUST>0&&player.customers.length===TOTAL_CUST){endGame(true,'conquest');return}
-    if(TOTAL_CUST>0&&enemy.customers.length===TOTAL_CUST){endGame(false,'conquest');return}
+    for(const op of players){if(op!==player&&TOTAL_CUST>0&&op.customers.length===TOTAL_CUST){endGame(false,'conquest');return}}
   }
   // Fallback bankruptcy check for all modes
   if(winCondition!=='elimination'){
     if(player.cash<=0&&player.arr<=0&&player.customers.length===0){endGame(false,'bankrupt');return}
-    if(enemy.cash<=0&&enemy.arr<=0&&enemy.customers.length===0){endGame(true,'bankrupt');return}
   }
   updateUI();
 }
@@ -1106,12 +1440,12 @@ function actUnit(u){
 
   // ---- TALENT ACQUISITION LOGIC ----
   if(u.type==='talent_acq'){
-    const opp=u.owner===player?enemy:player;
+    const opp=players.find(p=>p!==u.owner)||enemy;
     const myTAColor=u.owner===player?'positive':'negative';
 
     // TA-vs-TA NEGOTIATION CHECK — if recruiting/moving and enemy TA nearby, enter negotiation
     if((u.state==='recruiting'||u.state==='moving'||u.state==='idle')&&!u.negotiatingWith){
-      const enemyTA=opp.units.find(e=>e.type==='talent_acq'&&e.state!=='building'&&e.state!=='negotiating'&&Math.sqrt((u.x-e.x)**2+(u.y-e.y)**2)<3);
+      const enemyTA=getAllEnemyUnits(u.owner).find(e=>e.type==='talent_acq'&&e.state!=='building'&&e.state!=='negotiating'&&Math.sqrt((u.x-e.x)**2+(u.y-e.y)**2)<3);
       if(enemyTA){
         u.state='negotiating';u.negotiatingWith=enemyTA;u.negotiationProgress=50;
         enemyTA.state='negotiating';enemyTA.negotiatingWith=u;enemyTA.negotiationProgress=50;
@@ -1136,20 +1470,22 @@ function actUnit(u){
         other.owner=u.owner;other.state='idle';other.negotiatingWith=null;other.negotiationProgress=50;
         other.nickname=other.nickname+' (Poached)';
         u.state='idle';u.negotiatingWith=null;u.negotiationProgress=50;
-        u.owner.units.push(other);const oi=opp.units.indexOf(other);if(oi>=0)opp.units.splice(oi,1);
-        addLog((u.owner===player?'You':enemy.name)+' won the talent war! Captured enemy TA!',myTAColor);
-        if(u.owner===player)voiceSystem('negotiationWon');else voiceSystem('negotiationLost');
+        const otherOwner=other.owner;
+        u.owner.units.push(other);const oi=otherOwner.units.indexOf(other);if(oi>=0)otherOwner.units.splice(oi,1);
+        other.owner=u.owner;
+        addLog((u.owner===player?'You':u.owner.name)+' won the talent war! Captured enemy TA!',myTAColor);
+        if(u.owner===player)voiceSystem('negotiationWon');else if(otherOwner===player)voiceSystem('negotiationLost');
       } else if(u.negotiationProgress<=0){
         // other wins — captures u
         const prevOwner=u.owner;
-        const prevList=prevOwner===player?player.units:enemy.units;
-        const ui2=prevList.indexOf(u);if(ui2>=0)prevList.splice(ui2,1);
-        u.owner=opp;u.state='idle';u.negotiatingWith=null;u.negotiationProgress=50;
+        const ui2=prevOwner.units.indexOf(u);if(ui2>=0)prevOwner.units.splice(ui2,1);
+        const otherOwner2=other.owner;
+        u.owner=otherOwner2;u.state='idle';u.negotiatingWith=null;u.negotiationProgress=50;
         u.nickname=u.nickname+' (Poached)';
         other.state='idle';other.negotiatingWith=null;other.negotiationProgress=50;
-        opp.units.push(u);
-        addLog((opp===player?'You':enemy.name)+' won the talent war! Captured enemy TA!',opp===player?'positive':'negative');
-        if(opp===player)voiceSystem('negotiationWon');else voiceSystem('negotiationLost');
+        otherOwner2.units.push(u);
+        addLog((otherOwner2===player?'You':otherOwner2.name)+' won the talent war! Captured enemy TA!',otherOwner2===player?'positive':'negative');
+        if(otherOwner2===player)voiceSystem('negotiationWon');else if(prevOwner===player)voiceSystem('negotiationLost');
       }
       return; // Don't do anything else while negotiating
     }
@@ -1158,18 +1494,18 @@ function actUnit(u){
     if(u.state==='recruiting'&&u.recruitTarget){
       const rt=u.recruitTarget;
       // Check target still valid
-      if(!opp.units.includes(rt)){u.recruitTarget=null;u.recruitProgress=0;u.state='idle';return}
+      if(!rt.owner||rt.owner===u.owner||!rt.owner.units.includes(rt)){u.recruitTarget=null;u.recruitProgress=0;u.state='idle';return}
       // Must stay close to recruit
       const dx=rt.x-u.x,dy=rt.y-u.y,dist=Math.sqrt(dx*dx+dy*dy);
       if(dist>4){u.tx=rt.x;u.ty=rt.y;u.state='moving';return}
       u.recruitProgress+=1.5; // ~67 ticks to complete
       if(u.recruitProgress>=100){
         // Poach complete — switch the unit to our team
-        const rIdx=opp.units.indexOf(rt);if(rIdx>=0)opp.units.splice(rIdx,1);
+        const rIdx=rt.owner.units.indexOf(rt);if(rIdx>=0)rt.owner.units.splice(rIdx,1);
         rt.owner=u.owner;rt.nickname=rt.nickname+' (Poached)';rt.state='idle';rt.target=null;
         u.owner.units.push(rt);
         u.recruitTarget=null;u.recruitProgress=0;u.state='idle';
-        addLog((u.owner===player?'You':enemy.name)+' poached '+(rt.nickname||UNITS_DEF[rt.type].name)+'!',myTAColor);
+        addLog((u.owner===player?'You':u.owner.name)+' poached '+(rt.nickname||UNITS_DEF[rt.type].name)+'!',myTAColor);
         if(u.owner===player)voiceSystem('poachSuccess');else voiceSystem('poachFail');
         dealFX(u,u.owner);
       }
@@ -1188,7 +1524,7 @@ function actUnit(u){
 
     // AUTO-TARGETING when idle — find enemy's highest-value sales unit
     if(u.state==='idle'){
-      const targets=opp.units.filter(e=>['sales_rep','sr_sales_rep','ai_agent'].includes(e.type)&&e.state!=='building');
+      const targets=getAllEnemyUnits(u.owner).filter(e=>['sales_rep','sr_sales_rep','ai_agent'].includes(e.type)&&e.state!=='building');
       if(targets.length>0){
         // Score by revGen + dealsWon*10 + type bonus
         const scored=targets.map(t=>{
@@ -1208,7 +1544,7 @@ function actUnit(u){
     // Magnetic pull — attract free prospects toward marketer
     freeCust.forEach(c=>{const dx=u.x-c.x,dy=u.y-c.y,d=Math.sqrt(dx*dx+dy*dy);if(d<mktRange&&d>0.5){c.x+=dx/d*0.03;c.y+=dy/d*0.03}});
     // Loyalty sabotage — drain loyalty from nearby enemy customers
-    const opp=u.owner===player?enemy:player;
+    const opp=players.find(p=>p!==u.owner)||enemy;
     if(u.state==='sabotaging'&&u.target){
       const c=u.target;
       if(!c.owner||c.owner===u.owner){u.target=null;u.state='idle'}
@@ -1218,13 +1554,13 @@ function actUnit(u){
           const drainRate=u.owner.tech.marketing_automation?0.4:0.2;
           c.loyalty-=drainRate;
           u.progress=Math.max(0,100-c.loyalty);
-          if(c.loyalty<=0){addLog((u.owner===player?'Marketing':'Enemy marketing')+' softened #'+c.id+'!',u.owner===player?'positive':'negative');u.target=null;u.state='idle';u.progress=0}
+          if(c.loyalty<=0){addLog((u.owner===player?'Marketing':'Enemy marketing')+' softened #'+c.id+'!',u.owner===player?'positive':'negative');if(u.owner===player)voiceSystem('sabotageSuccess');u.target=null;u.state='idle';u.progress=0}
         }
       }
     }
     // Auto-target enemy customers when idle
     if(u.state==='idle'){
-      const enemyCusts=opp.customers.filter(c=>c.loyalty>0);
+      const enemyCusts=getAllEnemyCustomers(u.owner).filter(c=>c.loyalty>0);
       if(enemyCusts.length>0){
         let near=null,nd=Infinity;
         enemyCusts.forEach(c=>{const d=(u.x-c.x)**2+(u.y-c.y)**2;if(d<nd){nd=d;near=c}});
@@ -1250,13 +1586,13 @@ function actUnit(u){
   if((u.state==='converting'||u.state==='blocked')&&u.target){const c=u.target,tb=u.owner.tech.basic_crm===true?1.2:1,pw=u.power*tb;
     // Value-based close speed: small deals close fast, large deals are a grind
     const vf=c.value<=3?1.67:c.value<=7?1:0.67;
-    if(c.owner===null){u.state='converting';u.progress+=pw*1.0*vf;if(u.progress>=100){c.owner=u.owner;c.loyalty=100;u.owner.customers.push(c);const i=freeCust.indexOf(c);if(i>=0)freeCust.splice(i,1);u.dealsWon++;u.revGen+=c.value;addLog((u.owner===player?'You':enemy.name)+' won '+c.city+' #'+c.id+' ($'+c.value+'K)',u.owner===player?'positive':'negative');if(u.owner===player)voiceSystem('dealWon');dealFX(c,u.owner);u.target=null;u.state='idle';u.progress=0}}
+    if(c.owner===null){u.state='converting';u.progress+=pw*1.0*vf;if(u.progress>=100){c.owner=u.owner;c.loyalty=100;u.owner.customers.push(c);const i=freeCust.indexOf(c);if(i>=0)freeCust.splice(i,1);u.dealsWon++;u.revGen+=c.value;addLog((u.owner===player?'You':u.owner.name)+' won '+c.city+' #'+c.id+' ($'+c.value+'K)',u.owner===player?'positive':'negative');if(u.owner===player)voiceSystem('dealWon');dealFX(c,u.owner);u.target=null;u.state='idle';u.progress=0}}
     else if(c.owner!==u.owner){
       // Count CS reps defending this customer (from the customer's owner)
       const defRange=c.owner.tech.customer_success?8:4;
       const defenders=c.owner.units.filter(d=>d.type==='service_rep'&&d.state!=='building'&&Math.sqrt((d.x-c.x)**2+(d.y-c.y)**2)<defRange).length;
       // Count attackers working on this same customer
-      const attackers=[...player.units,...enemy.units].filter(a=>a.target===c&&(a.state==='converting'||a.state==='blocked')&&a.owner!==c.owner).length;
+      const attackers=players.flatMap(p=>p.units).filter(a=>a.target===c&&(a.state==='converting'||a.state==='blocked')&&a.owner!==c.owner).length;
       if(defenders>0&&defenders>=attackers){
         // CS reps outnumber or match attackers — customer not interested, block progress
         u.state='blocked';u.progress=Math.max(0,u.progress-0.3); // slowly decay progress
@@ -1267,7 +1603,7 @@ function actUnit(u){
         const slowFactor=defenders>0?0.3:1; // 70% slower if any CS rep nearby
         c.loyalty-=pw*stealRate*slowFactor*vf;
         u.progress=Math.max(0,100-c.loyalty);
-        if(c.loyalty<=0){const prev=c.owner;const i=prev.customers.indexOf(c);if(i>=0)prev.customers.splice(i,1);c.owner=u.owner;c.loyalty=60;u.owner.customers.push(c);u.dealsWon++;u.dealsStolen++;u.revGen+=c.value;addLog((u.owner===player?'You':enemy.name)+' stole #'+c.id+' in '+c.city+'!',u.owner===player?'positive':'negative');if(u.owner===player)voiceSystem('dealStolen');else voiceSystem('enemyStole');dealFX(c,u.owner);u.target=null;u.state='idle';u.progress=0}
+        if(c.loyalty<=0){const prev=c.owner;const i=prev.customers.indexOf(c);if(i>=0)prev.customers.splice(i,1);c.owner=u.owner;c.loyalty=60;u.owner.customers.push(c);u.dealsWon++;u.dealsStolen++;u.revGen+=c.value;addLog((u.owner===player?'You':u.owner.name)+' stole #'+c.id+' in '+c.city+'!',u.owner===player?'positive':'negative');if(u.owner===player)voiceSystem('dealStolen');else voiceSystem('enemyStole');dealFX(c,u.owner);u.target=null;u.state='idle';u.progress=0}
       }
     }
     else{u.target=null;u.state='idle'}}
@@ -1283,7 +1619,7 @@ function actUnit(u){
     targets.forEach(c=>{const d=(u.x-c.x)**2+(u.y-c.y)**2;if(d<nd){nd=d;near=c}});
     if(near){u.target=near;u.tx=near.x;u.ty=near.y;u.state='moving'}}
 }
-function aiTick(){
+function aiTick(aiP){
   // AI difficulty scales: 1=Passive, 2=Easy, 3=Medium, 4=Hard, 5=Ruthless
   const d=aiDifficulty;
   const hireChance=[0.05,0.15,0.35,0.55,0.75][d-1];
@@ -1291,107 +1627,118 @@ function aiTick(){
   const techChance=[0.01,0.04,0.08,0.15,0.25][d-1];
   const cashThreshold=[600,400,200,100,50][d-1];
 
-  const cap=enemy.buildings.filter(b=>b.type==='office'&&b.bp===undefined).length*5+enemy.buildings.filter(b=>b.type==='hq_upgrade'&&b.bp===undefined).length*10;
-  const b=enemy.buildings[0];if(!b)return;
+  const cap=aiP.buildings.filter(b=>b.type==='office'&&b.bp===undefined).length*5+aiP.buildings.filter(b=>b.type==='hq_upgrade'&&b.bp===undefined).length*10;
+  const b=aiP.buildings[0];if(!b)return;
 
-  // HIRE — higher difficulty = more aggressive hiring, smarter unit choices
-  if(enemy.units.length<cap&&enemy.cash>cashThreshold&&Math.random()<hireChance){
+  // HIRE
+  if(aiP.units.length<cap&&aiP.cash>cashThreshold&&Math.random()<hireChance){
     let t='sales_rep';
     if(d>=4){
-      // Hard+ AI prioritizes strategically
-      const hasService=enemy.units.some(u=>u.type==='service_rep');
-      const hasMarketer=enemy.units.some(u=>u.type==='marketer');
-      if(enemy.tech.ai_first===true&&Math.random()<0.4)t='ai_agent';
-      else if(enemy.tech.advanced_sales===true&&Math.random()<0.35)t='sr_sales_rep';
-      else if(!hasService&&enemy.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)&&Math.random()<0.3)t='service_rep';
-      else if(!hasMarketer&&enemy.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined)&&Math.random()<0.25)t='marketer';
+      const hasService=aiP.units.some(u=>u.type==='service_rep');
+      const hasMarketer=aiP.units.some(u=>u.type==='marketer');
+      if(aiP.tech.ai_first===true&&Math.random()<0.4)t='ai_agent';
+      else if(aiP.tech.advanced_sales===true&&Math.random()<0.35)t='sr_sales_rep';
+      else if(!hasService&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)&&Math.random()<0.3)t='service_rep';
+      else if(!hasMarketer&&aiP.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined)&&Math.random()<0.25)t='marketer';
     } else {
-      if(enemy.tech.ai_first===true&&Math.random()<0.2)t='ai_agent';
-      else if(enemy.tech.advanced_sales===true&&Math.random()<0.2)t='sr_sales_rep';
-      else if(Math.random()<0.15&&enemy.buildings.some(x=>x.type==='support_center'&&x.bp===undefined))t='service_rep';
-      else if(Math.random()<0.1&&enemy.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined))t='marketer';
+      if(aiP.tech.ai_first===true&&Math.random()<0.2)t='ai_agent';
+      else if(aiP.tech.advanced_sales===true&&Math.random()<0.2)t='sr_sales_rep';
+      else if(Math.random()<0.15&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined))t='service_rep';
+      else if(Math.random()<0.1&&aiP.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined))t='marketer';
     }
-    if(enemy.cash>=UNITS_DEF[t].cost){enemy.cash-=UNITS_DEF[t].cost;
-      const u=createUnit(t,enemy,b.x+(Math.random()-0.5)*3,b.y+(Math.random()-0.5)*3);
-      u.bp=0;u.bt=UNITS_DEF[t].buildTime;u.state='building';enemy.units.push(u)}
+    if(aiP.cash>=UNITS_DEF[t].cost){aiP.cash-=UNITS_DEF[t].cost;
+      const u=createUnit(t,aiP,b.x+(Math.random()-0.5)*3,b.y+(Math.random()-0.5)*3);
+      u.bp=0;u.bt=UNITS_DEF[t].buildTime;u.state='building';aiP.units.push(u)}
   }
 
-  // BUILD — systematic building order on hard+
-  if(enemy.cash>cashThreshold&&Math.random()<buildChance){
-    const has=type=>enemy.buildings.some(x=>x.type===type);
+  // BUILD
+  if(aiP.cash>cashThreshold&&Math.random()<buildChance){
+    const has=type=>aiP.buildings.some(x=>x.type===type);
     let toBuild=null;
     if(d>=4){
-      // Hard AI follows optimal build order
       if(!has('research_lab'))toBuild='research_lab';
       else if(!has('marketing_dept'))toBuild='marketing_dept';
       else if(!has('support_center'))toBuild='support_center';
-      else if(!has('ai_datacenter')&&enemy.tech.advanced_sales===true)toBuild='ai_datacenter';
+      else if(!has('ai_datacenter')&&aiP.tech.advanced_sales===true)toBuild='ai_datacenter';
       else if(!has('hq_upgrade')&&has('research_lab'))toBuild='hq_upgrade';
     } else {
       if(!has('research_lab')&&Math.random()<0.5)toBuild='research_lab';
       else if(!has('support_center')&&Math.random()<0.4)toBuild='support_center';
       else if(!has('marketing_dept')&&Math.random()<0.3)toBuild='marketing_dept';
-      else if(!has('ai_datacenter')&&enemy.tech.advanced_sales===true&&Math.random()<0.2)toBuild='ai_datacenter';
+      else if(!has('ai_datacenter')&&aiP.tech.advanced_sales===true&&Math.random()<0.2)toBuild='ai_datacenter';
     }
-    if(toBuild&&enemy.cash>=BLDGS[toBuild].cost){enemy.cash-=BLDGS[toBuild].cost;
-      enemy.buildings.push({type:toBuild,x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS[toBuild].buildTime})}
+    if(toBuild&&aiP.cash>=BLDGS[toBuild].cost){aiP.cash-=BLDGS[toBuild].cost;
+      aiP.buildings.push({type:toBuild,x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS[toBuild].buildTime})}
   }
 
-  // RESEARCH — hard AI techs up fast
-  if(enemy.cash>cashThreshold&&Math.random()<techChance){
-    const hasLab=enemy.buildings.some(x=>x.type==='research_lab'&&x.bp===undefined);
+  // RESEARCH
+  if(aiP.cash>cashThreshold&&Math.random()<techChance){
+    const hasLab=aiP.buildings.some(x=>x.type==='research_lab'&&x.bp===undefined);
     if(hasLab){
-      if(enemy.tech.basic_crm!==true){enemy.tech.basic_crm='building';enemy.techBuild=enemy.techBuild||{};enemy.techBuild.basic_crm={bp:0,bt:TECHS.basic_crm.buildTime}}
-      else if(enemy.tech.advanced_sales!==true&&d>=3){enemy.tech.advanced_sales='building';enemy.techBuild=enemy.techBuild||{};enemy.techBuild.advanced_sales={bp:0,bt:TECHS.advanced_sales.buildTime}}
-      else if(enemy.tech.customer_success!==true&&d>=3&&enemy.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)){enemy.tech.customer_success='building';enemy.techBuild=enemy.techBuild||{};enemy.techBuild.customer_success={bp:0,bt:TECHS.customer_success.buildTime}}
-      else if(enemy.tech.ai_first!==true&&enemy.tech.advanced_sales===true&&d>=4&&enemy.buildings.some(x=>x.type==='ai_datacenter'&&x.bp===undefined)){enemy.tech.ai_first='building';enemy.techBuild=enemy.techBuild||{};enemy.techBuild.ai_first={bp:0,bt:TECHS.ai_first.buildTime}}
-      else if(enemy.tech.enterprise!==true&&enemy.tech.advanced_sales===true&&d>=3){enemy.tech.enterprise='building';enemy.techBuild=enemy.techBuild||{};enemy.techBuild.enterprise={bp:0,bt:TECHS.enterprise.buildTime}}
-      else if(enemy.tech.marketing_automation!==true&&enemy.tech.basic_crm===true&&d>=4){enemy.tech.marketing_automation='building';enemy.techBuild=enemy.techBuild||{};enemy.techBuild.marketing_automation={bp:0,bt:TECHS.marketing_automation.buildTime}}
+      if(aiP.tech.basic_crm!==true){aiP.tech.basic_crm='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.basic_crm={bp:0,bt:TECHS.basic_crm.buildTime}}
+      else if(aiP.tech.advanced_sales!==true&&d>=3){aiP.tech.advanced_sales='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.advanced_sales={bp:0,bt:TECHS.advanced_sales.buildTime}}
+      else if(aiP.tech.customer_success!==true&&d>=3&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)){aiP.tech.customer_success='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.customer_success={bp:0,bt:TECHS.customer_success.buildTime}}
+      else if(aiP.tech.ai_first!==true&&aiP.tech.advanced_sales===true&&d>=4&&aiP.buildings.some(x=>x.type==='ai_datacenter'&&x.bp===undefined)){aiP.tech.ai_first='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.ai_first={bp:0,bt:TECHS.ai_first.buildTime}}
+      else if(aiP.tech.enterprise!==true&&aiP.tech.advanced_sales===true&&d>=3){aiP.tech.enterprise='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.enterprise={bp:0,bt:TECHS.enterprise.buildTime}}
+      else if(aiP.tech.marketing_automation!==true&&aiP.tech.basic_crm===true&&d>=4){aiP.tech.marketing_automation='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.marketing_automation={bp:0,bt:TECHS.marketing_automation.buildTime}}
     }
   }
 
-  // AGGRESSIVE TARGETING (Hard+) — redirect idle units to steal player customers
-  if(d>=4&&player.customers.length>0&&Math.random()<(d===5?0.4:0.2)){
-    const idle=enemy.units.filter(u=>u.state==='idle'&&['sales_rep','sr_sales_rep','ai_agent'].includes(u.type));
-    if(idle.length){
-      const u=idle[Math.floor(Math.random()*idle.length)];
-      // Target player's highest value customer
-      const sorted=[...player.customers].sort((a,b)=>b.value-a.value);
-      const target=sorted[Math.floor(Math.random()*Math.min(3,sorted.length))];
-      if(target){u.target=target;u.tx=target.x;u.ty=target.y;u.state='moving'}
+  // AGGRESSIVE TARGETING — target nearest opponent's highest-value customers
+  if(d>=4&&Math.random()<(d===5?0.4:0.2)){
+    const oppCusts=getAllEnemyCustomers(aiP);
+    if(oppCusts.length>0){
+      const idle=aiP.units.filter(u=>u.state==='idle'&&['sales_rep','sr_sales_rep','ai_agent'].includes(u.type));
+      if(idle.length){
+        const u=idle[Math.floor(Math.random()*idle.length)];
+        // Target nearest opponent's highest value customer
+        const sorted=[...oppCusts].sort((a,b)=>b.value-a.value);
+        const target=sorted[Math.floor(Math.random()*Math.min(3,sorted.length))];
+        if(target){u.target=target;u.tx=target.x;u.ty=target.y;u.state='moving'}
+      }
     }
   }
 
   // ---- AI TALENT ACQUISITION ----
-  const hasHR=enemy.buildings.some(x=>x.type==='hr_dept'&&x.bp===undefined);
-  const hasHRBuilding=enemy.buildings.some(x=>x.type==='hr_dept');
+  const hasHR=aiP.buildings.some(x=>x.type==='hr_dept'&&x.bp===undefined);
+  const hasHRBuilding=aiP.buildings.some(x=>x.type==='hr_dept');
 
-  // Build HR Dept at difficulty 3+
-  if(d>=3&&!hasHRBuilding&&enemy.cash>cashThreshold&&Math.random()<buildChance*1.5){
-    if(enemy.buildings.some(x=>x.type==='office'&&x.bp===undefined)&&enemy.cash>=BLDGS.hr_dept.cost){
-      enemy.cash-=BLDGS.hr_dept.cost;
-      enemy.buildings.push({type:'hr_dept',x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS.hr_dept.buildTime});
+  if(d>=3&&!hasHRBuilding&&aiP.cash>cashThreshold&&Math.random()<buildChance*1.5){
+    if(aiP.buildings.some(x=>x.type==='office'&&x.bp===undefined)&&aiP.cash>=BLDGS.hr_dept.cost){
+      aiP.cash-=BLDGS.hr_dept.cost;
+      aiP.buildings.push({type:'hr_dept',x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS.hr_dept.buildTime});
     }
   }
 
-  // Hire TA at difficulty 3+ (higher chance at 4+)
-  if(d>=3&&hasHR&&!enemy.taBuilt&&enemy.cash>=UNITS_DEF.talent_acq.cost){
+  if(d>=3&&hasHR&&!aiP.taBuilt&&aiP.cash>=UNITS_DEF.talent_acq.cost){
     const taChance=d>=4?0.3:0.15;
     if(Math.random()<taChance){
-      enemy.cash-=UNITS_DEF.talent_acq.cost;
-      const ta=createUnit('talent_acq',enemy,b.x+(Math.random()-0.5)*3,b.y+(Math.random()-0.5)*3);
-      ta.bp=0;ta.bt=UNITS_DEF.talent_acq.buildTime;ta.state='building';enemy.units.push(ta);
-      enemy.taBuilt=true;
+      aiP.cash-=UNITS_DEF.talent_acq.cost;
+      const ta=createUnit('talent_acq',aiP,b.x+(Math.random()-0.5)*3,b.y+(Math.random()-0.5)*3);
+      ta.bp=0;ta.bt=UNITS_DEF.talent_acq.buildTime;ta.state='building';aiP.units.push(ta);
+      aiP.taBuilt=true;
     }
   }
 
-  // AI intercepts player TA at difficulty 3+ — send its TA toward threatened unit
+  // AI intercepts opponent TA
   if(d>=3){
-    const aiTA=enemy.units.find(u=>u.type==='talent_acq'&&u.state==='idle');
-    const playerTA=player.units.find(u=>u.type==='talent_acq'&&(u.state==='recruiting'||u.state==='moving')&&u.recruitTarget&&u.recruitTarget.owner===enemy);
-    if(aiTA&&playerTA){
-      aiTA.tx=playerTA.x;aiTA.ty=playerTA.y;aiTA.state='moving';
+    const aiTA=aiP.units.find(u=>u.type==='talent_acq'&&u.state==='idle');
+    const threatTA=players.filter(p=>p!==aiP).flatMap(p=>p.units).find(u=>u.type==='talent_acq'&&(u.state==='recruiting'||u.state==='moving')&&u.recruitTarget&&u.recruitTarget.owner===aiP);
+    if(aiTA&&threatTA){
+      aiTA.tx=threatTA.x;aiTA.ty=threatTA.y;aiTA.state='moving';
     }
+  }
+
+  // ---- AI M&A BEHAVIOR ----
+  if(d>=4&&!aiP.buildings.some(x=>x.type==='m_and_a_dept')&&aiP.buildings.some(x=>x.type==='research_lab'&&x.bp===undefined)&&aiP.cash>=BLDGS.m_and_a_dept.cost&&Math.random()<buildChance){
+    aiP.cash-=BLDGS.m_and_a_dept.cost;
+    aiP.buildings.push({type:'m_and_a_dept',x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS.m_and_a_dept.buildTime});
+  }
+  const aiHasMA=aiP.buildings.some(x=>x.type==='m_and_a_dept'&&x.bp===undefined);
+  if(aiHasMA&&isDistressed(player)&&aiAcqCountdown===0){
+    aiAcqCountdown=AI_ACQ_DURATION;aiAcquirer=aiP;
+    addLog('⚠ HOSTILE TAKEOVER INCOMING from '+aiP.name+'! Get cash above $50K!','negative');
+    voiceSystem('acquisitionThreat');
   }
 }
 function dealFX(c,owner){
@@ -1470,8 +1817,8 @@ function render(dt,lerp){
 
   const rr=[];
   allCust.forEach(c=>{const i=lerpPos(c);rr.push({t:'c',d:c,y:(c.px||c.x)+(c.py||c.y)+lerp*2,i})});
-  [...player.buildings,...enemy.buildings].forEach(b=>{const i=toIso(b.x,b.y);const o=player.buildings.includes(b)?player:enemy;rr.push({t:'b',d:b,o,y:b.x+b.y,i})});
-  [...player.units,...enemy.units].forEach(u=>{const i=lerpPos(u);const la=u.pAnim!==undefined?u.pAnim+(u.anim-u.pAnim)*lerp:u.anim;const lp=u.pProgress!==undefined?u.pProgress+(u.progress-u.pProgress)*lerp:u.progress;rr.push({t:'u',d:u,y:(u.px||u.x)+(u.py||u.y)+lerp*2,i,la,lp})});
+  players.forEach(p=>{p.buildings.forEach(b=>{const i=toIso(b.x,b.y);rr.push({t:'b',d:b,o:p,y:b.x+b.y,i})})});
+  players.flatMap(p=>p.units).forEach(u=>{const i=lerpPos(u);const la=u.pAnim!==undefined?u.pAnim+(u.anim-u.pAnim)*lerp:u.anim;const lp=u.pProgress!==undefined?u.pProgress+(u.progress-u.pProgress)*lerp:u.progress;rr.push({t:'u',d:u,y:(u.px||u.x)+(u.py||u.y)+lerp*2,i,la,lp})});
   rr.sort((a,b)=>a.y-b.y);
   rr.forEach(r=>{if(r.t==='c')drawCust(r.d,r.i);else if(r.t==='b')drawBase(r.d,r.o,r.i);else drawUnit(r.d,r.i,r.la,r.lp,lerpPos)});
 
@@ -1558,7 +1905,7 @@ function render(dt,lerp){
     ctx.fillStyle=col;ctx.globalAlpha=0.15;ctx.fillRect(panX+1,panY+1,panW-2,18);ctx.globalAlpha=1;
     // Name + type
     ctx.fillStyle=col;ctx.font='bold 10px Orbitron';ctx.textAlign='left';
-    ctx.fillText((u.nickname||def.name)+' — '+(isP?player.name:enemy.name),panX+10,panY+13);
+    ctx.fillText((u.nickname||def.name)+' — '+(isP?player.name:u.owner.name),panX+10,panY+13);
     ctx.fillStyle='#888';ctx.font='9px Share Tech Mono';ctx.textAlign='right';
     ctx.fillText(isP?'YOUR TEAM':'ENEMY',panX+panW-10,panY+13);
     // Type + rank
@@ -1598,14 +1945,18 @@ function render(dt,lerp){
 }
 
 function drawCust(c,iso){
-  const targeted=[...player.units,...enemy.units].some(u=>u.target===c&&u.state==='converting');
+  const targeted=players.flatMap(p=>p.units).some(u=>u.target===c&&u.state==='converting');
   let col,glow;
   if(!c.owner){col=targeted?'rgba(255,220,100,0.7)':'rgba(100,110,130,0.6)';glow=targeted?'#ffdd66':'#666'}
-  else if(c.owner===player){col='rgba(0,255,65,0.6)';glow='#00ff41'}
-  else{col='rgba(255,51,51,0.6)';glow='#ff3333'}
+  else{
+    const oc=c.owner.color||'#888';
+    // Parse hex to rgba
+    const hr=parseInt(oc.slice(1,3),16),hg=parseInt(oc.slice(3,5),16),hb=parseInt(oc.slice(5,7),16);
+    col=`rgba(${hr},${hg},${hb},0.6)`;glow=oc;
+  }
 
   const pulse=Math.sin(gameTime*0.1+c.pp)*0.08+1;
-  const sz=(2+c.value*0.4)*pulse; // size driven by value: $1K=2.4px, $12K=6.8px
+  const sz=(2+c.value*0.4)*pulse;
 
   // Diamond
   ctx.fillStyle=col;ctx.strokeStyle=glow;ctx.lineWidth=1;
@@ -1613,11 +1964,11 @@ function drawCust(c,iso){
 
   // Value
   ctx.font='bold 7px Orbitron';ctx.textAlign='center';
-  ctx.fillStyle=c.owner===player?'rgba(0,255,65,0.8)':c.owner?'rgba(255,100,100,0.7)':'#555';
+  ctx.fillStyle=c.owner?(c.owner===player?'rgba(0,255,65,0.8)':'rgba(255,150,150,0.7)'):'#555';
   ctx.fillText('$'+c.value+'K',iso.x,iso.y-sz-4);
 
   // Ownership glow
-  if(c.owner){const p=Math.sin(gameTime*0.15+c.pp)*0.1+0.15;ctx.globalAlpha=p;const g=ctx.createRadialGradient(iso.x,iso.y,0,iso.x,iso.y,12);g.addColorStop(0,c.owner===player?'rgba(0,255,65,0.3)':'rgba(255,51,51,0.3)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(iso.x,iso.y,12,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+  if(c.owner){const oc=c.owner.color||'#888';const hr=parseInt(oc.slice(1,3),16),hg=parseInt(oc.slice(3,5),16),hb=parseInt(oc.slice(5,7),16);const p=Math.sin(gameTime*0.15+c.pp)*0.1+0.15;ctx.globalAlpha=p;const g=ctx.createRadialGradient(iso.x,iso.y,0,iso.x,iso.y,12);g.addColorStop(0,`rgba(${hr},${hg},${hb},0.3)`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(iso.x,iso.y,12,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
   if(targeted){ctx.strokeStyle='rgba(255,220,100,0.5)';ctx.lineWidth=1;ctx.setLineDash([2,2]);ctx.beginPath();ctx.ellipse(iso.x,iso.y+2,8,4,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([])}
   // Loyalty bar for owned customers
   if(c.owner&&c.loyalty>0){
@@ -1634,9 +1985,9 @@ function drawCust(c,iso){
 }
 
 function drawBase(b,owner,iso){
-  const def=BLDGS[b.type],isP=owner===player,col=isP?'#00ff41':'#ff3333';
+  const def=BLDGS[b.type],isP=owner===player,col=owner.color||'#888';
   // Different building sizes per type
-  const sizes={office:[20,38],marketing_dept:[16,28],support_center:[16,30],research_lab:[18,34],hq_upgrade:[24,48],ai_datacenter:[22,44],hr_dept:[17,30]};
+  const sizes={office:[20,38],marketing_dept:[16,28],support_center:[16,30],research_lab:[18,34],hq_upgrade:[24,48],ai_datacenter:[22,44],hr_dept:[17,30],m_and_a_dept:[19,36]};
   const[w,h]=sizes[b.type]||[18,32];
   const wallL=isP?'#1a3a28':'#3a1a1a', wallR=isP?'#244a34':'#4a2424', roofCol=isP?'#2a5a3a':'#5a2a2a';
   const winCol=isP?'rgba(0,255,65,0.5)':'rgba(255,80,80,0.5)', winOff='rgba(40,50,60,0.4)';
@@ -1696,6 +2047,11 @@ function drawBase(b,owner,iso){
     ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.ellipse(iso.x,iso.y-h-w*0.25,6,3,0,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.stroke();
     ctx.font='bold 5px Orbitron';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.4)';ctx.fillText('H',iso.x,iso.y-h-w*0.25+2);
+  } else if(b.type==='m_and_a_dept'){
+    // Gold M&A badge on roof
+    ctx.fillStyle='rgba(255,215,0,0.25)';ctx.beginPath();ctx.ellipse(iso.x,iso.y-h-w*0.25,7,3.5,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,215,0,0.5)';ctx.lineWidth=1;ctx.stroke();
+    ctx.font='bold 5px Orbitron';ctx.textAlign='center';ctx.fillStyle='rgba(255,215,0,0.6)';ctx.fillText('M&A',iso.x,iso.y-h-w*0.25+2);
   }
 
   // Door (ground floor)
@@ -1751,7 +2107,7 @@ function drawBase(b,owner,iso){
 }
 
 function drawUnit(u,iso,la,lp,lerpPos){
-  const def=UNITS_DEF[u.type],isP=u.owner===player,col=isP?'#00ff41':'#ff3333',rgb=isP?'0,255,65':'255,51,51';
+  const def=UNITS_DEF[u.type],isP=u.owner===player,col=u.owner.color||'#888',rgb=PLAYER_RGBS[players.indexOf(u.owner)]||'128,128,128';
   if(la===undefined)la=u.anim;
   if(lp===undefined)lp=u.progress;
   const bob=Math.sin(la*2)*1.5;
@@ -2079,14 +2435,14 @@ function drawMinimap(){
   CITIES.forEach(c=>{mmCtx.fillStyle='rgba(100,140,180,0.3)';mmCtx.beginPath();mmCtx.arc(c.x*s+ox,c.y*s+oy,c.size*1.5,0,Math.PI*2);mmCtx.fill()});
   // Customers
   freeCust.forEach(c=>{mmCtx.fillStyle='#555';mmCtx.fillRect(c.x*s+ox-0.5,c.y*s+oy-0.5,2,2)});
-  player.customers.forEach(c=>{mmCtx.fillStyle='#00ff41';mmCtx.fillRect(c.x*s+ox-0.5,c.y*s+oy-0.5,2,2)});
-  enemy.customers.forEach(c=>{mmCtx.fillStyle='#ff3333';mmCtx.fillRect(c.x*s+ox-0.5,c.y*s+oy-0.5,2,2)});
-  // Units
-  player.units.forEach(u=>{mmCtx.fillStyle='#00ff88';mmCtx.fillRect(u.x*s+ox-1,u.y*s+oy-1,3,3)});
-  enemy.units.forEach(u=>{mmCtx.fillStyle='#ff5555';mmCtx.fillRect(u.x*s+ox-1,u.y*s+oy-1,3,3)});
-  // HQ markers
-  player.buildings.slice(0,1).forEach(b=>{mmCtx.strokeStyle='#00ff41';mmCtx.lineWidth=2;mmCtx.strokeRect(b.x*s+ox-3,b.y*s+oy-3,6,6)});
-  enemy.buildings.slice(0,1).forEach(b=>{mmCtx.strokeStyle='#ff3333';mmCtx.lineWidth=2;mmCtx.strokeRect(b.x*s+ox-3,b.y*s+oy-3,6,6)});
+  // All players' customers in their color
+  players.forEach(p=>{mmCtx.fillStyle=p.color;p.customers.forEach(c=>{mmCtx.fillRect(c.x*s+ox-0.5,c.y*s+oy-0.5,2,2)})});
+  // Pulsing gold border for distressed side's customers
+  players.forEach(p=>{if(isDistressed(p)){const pulse=Math.sin(gameTime*0.2)*0.3+0.7;mmCtx.strokeStyle=`rgba(255,215,0,${pulse})`;mmCtx.lineWidth=1;p.customers.forEach(c=>{mmCtx.strokeRect(c.x*s+ox-2,c.y*s+oy-2,4,4)})}});
+  // Units — all players
+  players.forEach(p=>{mmCtx.fillStyle=p.color;p.units.forEach(u=>{mmCtx.fillRect(u.x*s+ox-1,u.y*s+oy-1,3,3)})});
+  // HQ markers — all players
+  players.forEach(p=>{mmCtx.strokeStyle=p.color;mmCtx.lineWidth=2;p.buildings.slice(0,1).forEach(b=>{mmCtx.strokeRect(b.x*s+ox-3,b.y*s+oy-3,6,6)})});
 }
 
 // ---- UI ----
@@ -2114,8 +2470,9 @@ function updateUI(){
     const left=Math.max(0,500-gameTime);
     wcEl.textContent='$'+Math.floor(player.arr)+'/$500K ('+left+'t)';wcEl.style.color=player.arr>=400?'#00ff41':player.arr>=200?'#ffdd44':'#bb88ff';
   } else if(winCondition==='elimination'){
-    wcIcn.textContent='💀';wcLbl.textContent='Enemy';
-    wcEl.textContent='$'+Math.floor(enemy.cash)+'K / $'+Math.floor(enemy.arr)+'K MRR';wcEl.style.color=enemy.cash<100?'#00ff41':enemy.cash<300?'#ffdd44':'#bb88ff';
+    wcIcn.textContent='💀';wcLbl.textContent='Alive';
+    const aliveCount=players.filter(p=>p!==player&&(p.cash>0||p.arr>0||p.customers.length>0)).length;
+    wcEl.textContent=aliveCount+' opponent'+(aliveCount!==1?'s':'')+' left';wcEl.style.color=aliveCount<=1?'#00ff41':aliveCount<=2?'#ffdd44':'#bb88ff';
   } else if(winCondition==='conquest'){
     wcIcn.textContent='🌍';wcLbl.textContent='Conquest';
     const pct=TOTAL_CUST>0?Math.round(player.customers.length/TOTAL_CUST*100):0;
@@ -2147,9 +2504,19 @@ function updateTechBtns(){const c=document.getElementById('techButtons');c.inner
     else{btn.innerHTML=`<span class="btn-icon">${t.icon}</span><span class="btn-info"><span class="btn-name">${t.name} ${done?'✓':''}</span><span class="btn-cost">${done?'DONE':'$'+t.cost+'K'}</span></span>`}
     btn.onclick=()=>resTech(k);
     const ib=document.createElement('button');ib.className='info-btn';ib.textContent='i';ib.onclick=(e)=>{e.stopPropagation();showTechInfo(k)};
-    row.appendChild(btn);row.appendChild(ib);c.appendChild(row)})}function updateIntel(){const pP=Math.round(player.customers.length/TOTAL_CUST*100),eP=Math.round(enemy.customers.length/TOTAL_CUST*100);const burn=player.units.reduce((s,u)=>s+u.salary,0);
+    row.appendChild(btn);row.appendChild(ib);c.appendChild(row)})}function updateIntel(){const pP=Math.round(player.customers.length/TOTAL_CUST*100);const burn=player.units.reduce((s,u)=>s+u.salary,0);
   const cap=player.buildings.filter(b=>b.type==='office').length*5+player.buildings.filter(b=>b.type==='hq_upgrade').length*10;
-  document.getElementById('marketIntel').innerHTML=`<div style="color:var(--green)">■ You: ${pP}% (${player.customers.length})</div><div style="color:var(--red)">■ ${enemy.name}: ${eP}% (${enemy.customers.length})</div><div style="color:#666">■ Free: ${100-pP-eP}% (${freeCust.length})</div><div style="margin-top:6px">Units: ${player.units.length}/${cap}</div>`}
+  const hasMA=player.buildings.some(b=>b.type==='m_and_a_dept'&&b.bp===undefined);
+  let oppLines='';
+  players.filter(p=>p!==player).forEach(p=>{
+    const ePct=Math.round(p.customers.length/TOTAL_CUST*100);
+    const distTag=isDistressed(p)?'<span style="color:var(--gold);font-weight:bold"> VULNERABLE</span>':'';
+    oppLines+=`<div style="color:${p.color}">■ ${p.name}: ${ePct}% (${p.customers.length})${distTag}</div>`;
+  });
+  const anyDistressed=players.find(p=>p!==player&&isDistressed(p));
+  const acqBtn=(hasMA&&anyDistressed)?`<div style="margin-top:6px"><button onclick="tryPlayerAcquire()" style="background:rgba(255,215,0,0.15);border:1px solid var(--gold);color:var(--gold);font-family:'Orbitron',sans-serif;font-size:10px;padding:6px 12px;cursor:pointer;width:100%;letter-spacing:1px">🏦 ACQUIRE ($${acquisitionCost(anyDistressed)}K)</button></div>`:'';
+  const acqCountdown=aiAcqCountdown>0?`<div style="margin-top:6px;color:var(--red);font-weight:bold">⚠ TAKEOVER: ${aiAcqCountdown}t<div style="background:#333;height:4px;margin-top:3px;border-radius:2px"><div style="background:var(--red);height:4px;width:${Math.round((AI_ACQ_DURATION-aiAcqCountdown)/AI_ACQ_DURATION*100)}%;border-radius:2px"></div></div></div>`:'';
+  document.getElementById('marketIntel').innerHTML=`<div style="color:var(--green)">■ You: ${pP}% (${player.customers.length})</div>${oppLines}<div style="color:#666">■ Free: ${freeCust.length}</div><div style="margin-top:6px">Units: ${player.units.length}/${cap}</div>${acqBtn}${acqCountdown}`}
 function updateTeamList(){
   const c=document.getElementById('teamList');c.innerHTML='';
   const cap=player.buildings.filter(b=>b.type==='office').length*5+player.buildings.filter(b=>b.type==='hq_upgrade').length*10;
@@ -2274,7 +2641,7 @@ function showTechInfo(k){const t=TECHS[k];const done=player.tech[k];
 function showUnitInspector(u){
   const def=UNITS_DEF[u.type],isP=u.owner===player;
   const col=isP?'var(--green)':'var(--red)';
-  const ownerName=isP?player.name:enemy.name;
+  const ownerName=isP?player.name:u.owner.name;
   const age=gameTime-(u.bornAt||0);
   const rank=u.dealsWon>=10?'★★★ VETERAN':u.dealsWon>=5?'★★ EXPERIENCED':u.dealsWon>=1?'★ ACTIVE':'ROOKIE';
   const rankCol=u.dealsWon>=10?'#ffd700':u.dealsWon>=5?'#ddaa33':u.dealsWon>=1?'#88aacc':'#666';
@@ -2329,7 +2696,6 @@ function endGame(won,reason){
   document.getElementById('goTitle').style.color=won?'#00ff41':'#ff3333';
   
   const share=Math.round(player.customers.length/TOTAL_CUST*100);
-  const eShare=Math.round(enemy.customers.length/TOTAL_CUST*100);
   const burn=player.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);
   const totalDeals=player.units.reduce((s,u)=>s+(u.dealsWon||0),0);
   const totalStolen=player.units.reduce((s,u)=>s+(u.dealsStolen||0),0);
@@ -2345,7 +2711,8 @@ function endGame(won,reason){
     if(player.units.length>=4&&totalDeals<=1)reasons.push(`You hired ${player.units.length} reps but only closed ${totalDeals} deal${totalDeals===1?'':'s'}. Consider fewer, better-positioned reps early on.`);
     if(Object.keys(player.tech).filter(k=>player.tech[k]===true).length===0&&gameTime>30)reasons.push('You never completed any research. Tech like Basic CRM (+20% close rate) significantly boosts your team.');
     if(player.buildings.filter(b=>b.bp===undefined).length<=1&&gameTime>40)reasons.push('You only had one building. Expanding with an R&D Lab or Marketing Dept unlocks powerful options.');
-    if(enemy.customers.length>player.customers.length*3)reasons.push(`${enemy.name} dominated with ${enemy.customers.length} accounts vs your ${player.customers.length}. They outpaced you in the market.`);
+    const topOpp=players.filter(p=>p!==player).reduce((a,b)=>a.customers.length>=b.customers.length?a:b);
+    if(topOpp&&topOpp.customers.length>player.customers.length*3)reasons.push(`${topOpp.name} dominated with ${topOpp.customers.length} accounts vs your ${player.customers.length}. They outpaced you in the market.`);
     if(totalDeals>0&&player.arr>0&&burn>player.arr)reasons.push('You were growing but not fast enough — try closing higher-value deals or researching Enterprise Edition (2× MRR).');
     if(reasons.length===0)reasons.push('You ran out of cash. Try balancing hiring speed with revenue growth — each rep costs salary every month.');
     
@@ -2364,7 +2731,7 @@ function endGame(won,reason){
         Total revenue generated: $${totalRev}K<br>
         ${mvpLine?mvpLine+'<br>':''}
         Final burn rate: $${burn}K/mo vs ${Math.floor(player.arr)}K MRR<br>
-        ${enemy.name}: ${eShare}% market share
+        ${players.filter(p=>p!==player).map(p=>p.name+': '+Math.round(p.customers.length/TOTAL_CUST*100)+'%').join('<br>')}
       </div>
     </div>`;
   }
