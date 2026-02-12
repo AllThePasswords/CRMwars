@@ -529,17 +529,20 @@ function setSFXVolume(val){
 }
 
 // ---- MUSIC SYSTEM ----
-let bgMusic=null,musicVolume=0.3,musicTrack='',musicUnmuted=false;
+let bgMusic=null,musicVolume=0.3,musicTrack='',musicUnmuted=false,musicReady=false;
 function initMusic(){
+  if(musicReady)return;
+  if(!sfxManifest||!sfxManifest['music-title'])return;
+  musicReady=true;
   bgMusic=new Audio();
   bgMusic.loop=true;
   bgMusic.volume=0; // start muted for autoplay policy
-  if(sfxManifest&&sfxManifest['music-title']){
-    bgMusic.src='audio/'+sfxManifest['music-title'];
-    bgMusic.play().catch(()=>{});
-  }
+  bgMusic.src='audio/'+sfxManifest['music-title'];
+  musicTrack='title';
+  bgMusic.play().catch(()=>{});
 }
 function switchMusic(track){
+  initMusic(); // ensure music is initialized
   if(!bgMusic||!sfxManifest)return;
   const key='music-'+track;
   if(!sfxManifest[key]||musicTrack===track)return;
@@ -556,13 +559,13 @@ function setMusicVolume(val){
   if(bgMusic&&musicUnmuted)bgMusic.volume=musicVolume;
 }
 function unmuteMusic(){
-  if(musicUnmuted||!bgMusic)return;
+  initMusic(); // ensure music is initialized
+  if(!bgMusic)return;
+  if(musicUnmuted)return;
   musicUnmuted=true;
   bgMusic.volume=musicVolume;
-  if(bgMusic.paused)bgMusic.play().catch(()=>{});
+  bgMusic.play().catch(()=>{});
 }
-// Init music after a short delay to allow manifest to load
-setTimeout(()=>{if(sfxManifest)initMusic()},500);
 
 // ---- GLOBAL CLICK SFX INTERCEPTOR ----
 document.body.addEventListener('click',function(e){
