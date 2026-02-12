@@ -69,20 +69,6 @@ input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4p
 input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--green);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 6px rgba(0,255,65,0.3)}
 input[type="range"]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--green);cursor:pointer;border:2px solid var(--bg)}
 input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:pointer}
-.settings-divider{border:none;border-top:1px solid #1e2035;margin:10px 0}
-.settings-row input[type="password"]{width:100%;background:rgba(255,255,255,0.04);border:1px solid #2a2a3a;color:var(--green);font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 6px;outline:none;border-radius:2px}
-.settings-row input[type="password"]:focus{border-color:var(--green-dim)}
-.eleven-key-row{flex-wrap:wrap;gap:4px}
-.eleven-key-row label{flex:0 0 100%;margin-bottom:2px}
-.eleven-key-row .slider-wrap{gap:4px}
-.eleven-test-btn,.eleven-preload-btn{background:transparent;border:1px solid #333;color:#888;font-family:'Share Tech Mono',monospace;font-size:10px;padding:2px 8px;cursor:pointer;transition:all 0.15s;border-radius:2px;white-space:nowrap}
-.eleven-test-btn:hover,.eleven-preload-btn:hover{border-color:var(--green-dim);color:var(--green);background:rgba(0,255,65,0.05)}
-.eleven-test-btn:disabled,.eleven-preload-btn:disabled{opacity:0.4;cursor:not-allowed}
-.eleven-preload-row{flex-wrap:wrap;gap:4px}
-.eleven-preload-row label{flex:0 0 100%;margin-bottom:2px}
-.eleven-progress{width:100%;height:4px;background:#1e2035;border-radius:2px;overflow:hidden;display:none}
-.eleven-progress-bar{height:100%;background:var(--green);width:0%;transition:width 0.3s}
-.eleven-status{font-size:9px;color:#555;width:100%;text-align:right}
 .info-btn{background:none;border:1px solid #333;color:#666;font-size:10px;width:18px;height:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;padding:0;line-height:1;font-family:'Orbitron',sans-serif}
 .info-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(51,153,255,0.1)}
 #infoModal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);align-items:center;justify-content:center}
@@ -282,9 +268,6 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
   <div class="settings-row"><label>Show Labels</label><div class="slider-wrap"><input type="checkbox" id="labelToggle" checked onchange="showLabels=this.checked;prerenderMap()"></div></div>
   <div class="settings-row"><label>Voice Feedback</label><div class="slider-wrap"><input type="checkbox" id="voiceToggle" checked onchange="voiceEnabled=this.checked"></div></div>
   <div class="settings-row"><label>UI Scale</label><div class="slider-wrap"><input type="range" id="uiScaleSlider" min="80" max="150" value="100" step="10" oninput="setUIScale(this.value)"><span id="uiScaleLabel">100%</span></div></div>
-  <hr class="settings-divider">
-  <div class="settings-row eleven-key-row"><label>ElevenLabs TTS</label><div class="slider-wrap"><input type="password" id="elevenKeyInput" placeholder="API key" oninput="onElevenKeyInput(this.value)"><button class="eleven-test-btn" id="elevenTestBtn" onclick="testElevenLabs()" disabled>Test</button></div></div>
-  <div class="settings-row eleven-preload-row" id="elevenPreloadRow" style="display:none"><label>Preload Voices</label><div class="slider-wrap"><button class="eleven-preload-btn" id="elevenPreloadBtn" onclick="preloadAllVoices()">Preload All</button><span class="eleven-status" id="elevenStatus"></span></div><div class="eleven-progress" id="elevenProgress"><div class="eleven-progress-bar" id="elevenProgressBar"></div></div></div>
 </div>
 <div id="rightPanel">
   <div class="panel-section"><div class="panel-title">🏗 Build</div><div id="buildingButtons"></div></div>
@@ -304,6 +287,7 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
 <div id="gameOver"><h2 id="goTitle"></h2><div class="go-stats" id="goStats"></div>
 <button class="menu-btn" onclick="location.reload()" style="border-color:var(--green-dim);color:var(--green)">PLAY AGAIN</button></div>
 <div id="infoModal" onclick="if(event.target===this)closeInfo()"><div id="infoModalContent"></div></div>
+<script src="config.js"></script>
 <script>
 // =============================================
 //  CRM WARS v4 — TERRITORY MAP (UK & Ireland)
@@ -384,41 +368,7 @@ const ELEVEN_VOICES={
   system:       'ErXwobaYiN019PkySvjV', // Antoni - neutral narrator
 };
 const elevenCache=new Map(); // key: text+type → blob URL
-let elevenLabsKey=localStorage.getItem('crm-elevenlabs-key')||'';
-
-function onElevenKeyInput(val){
-  elevenLabsKey=val.trim();
-  localStorage.setItem('crm-elevenlabs-key',elevenLabsKey);
-  const testBtn=document.getElementById('elevenTestBtn');
-  const preloadRow=document.getElementById('elevenPreloadRow');
-  if(testBtn)testBtn.disabled=!elevenLabsKey;
-  if(preloadRow)preloadRow.style.display=elevenLabsKey?'flex':'none';
-}
-
-function testElevenLabs(){
-  if(!elevenLabsKey)return;
-  const btn=document.getElementById('elevenTestBtn');
-  btn.disabled=true;btn.textContent='...';
-  const voiceId=ELEVEN_VOICES.system;
-  fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voiceId,{
-    method:'POST',
-    headers:{'xi-api-key':elevenLabsKey,'Content-Type':'application/json'},
-    body:JSON.stringify({text:'ElevenLabs connected. Voices online.',model_id:'eleven_multilingual_v2'})
-  }).then(r=>{
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    return r.blob();
-  }).then(blob=>{
-    const url=URL.createObjectURL(blob);
-    const audio=new Audio(url);
-    audio.play();
-    btn.textContent='OK!';btn.style.color='var(--green)';btn.style.borderColor='var(--green-dim)';
-    setTimeout(()=>{btn.textContent='Test';btn.style.color='';btn.style.borderColor='';btn.disabled=false},3000);
-  }).catch(e=>{
-    console.error('ElevenLabs test failed:',e);
-    btn.textContent='Fail';btn.style.color='var(--red)';btn.style.borderColor='var(--red)';
-    setTimeout(()=>{btn.textContent='Test';btn.style.color='';btn.style.borderColor='';btn.disabled=false},3000);
-  });
-}
+const elevenLabsKey=(typeof ELEVENLABS_API_KEY!=='undefined'&&ELEVENLABS_API_KEY)||'';
 
 function elevenSpeak(text,type){
   const cacheKey=text+'||'+type;
@@ -489,21 +439,12 @@ function preloadAllVoices(){
   const lines=getAllVoiceLines();
   const total=lines.length;
   let done=0,failed=0;
-  const statusEl=document.getElementById('elevenStatus');
-  const progressEl=document.getElementById('elevenProgress');
-  const barEl=document.getElementById('elevenProgressBar');
-  const btn=document.getElementById('elevenPreloadBtn');
-  btn.disabled=true;
-  progressEl.style.display='block';
-  statusEl.textContent='0/'+total;
-  barEl.style.width='0%';
 
   // Process in batches of 3 to avoid rate limits
   let idx=0;
   function nextBatch(){
     if(idx>=total){
-      btn.disabled=false;
-      statusEl.textContent=done+'/'+total+(failed?' ('+failed+' failed)':'');
+      console.log('ElevenLabs preload complete: '+done+'/'+total+(failed?' ('+failed+' failed)':''));
       return;
     }
     const batch=lines.slice(idx,idx+3);
@@ -524,23 +465,17 @@ function preloadAllVoices(){
         done++;
       }).catch(()=>{failed++;done++});
     })).then(()=>{
-      const pct=Math.round((done/total)*100);
-      barEl.style.width=pct+'%';
-      statusEl.textContent=done+'/'+total+(failed?' ('+failed+' failed)':'');
       setTimeout(nextBatch,200); // small delay between batches
     });
   }
   nextBatch();
 }
 
-// Init ElevenLabs UI on load
-document.addEventListener('DOMContentLoaded',()=>{
-  const inp=document.getElementById('elevenKeyInput');
-  if(inp&&elevenLabsKey){
-    inp.value=elevenLabsKey;
-    onElevenKeyInput(elevenLabsKey);
-  }
-});
+// Auto-preload all voice lines if ElevenLabs key is configured
+if(elevenLabsKey){
+  console.log('ElevenLabs TTS enabled — preloading voice lines...');
+  preloadAllVoices();
+}
 
 let voiceEnabled=true,voiceQueue=[],voiceBusy=false,lastVoiceTime=0;
 const VOICE_COOLDOWN=800; // ms between voices
