@@ -117,7 +117,7 @@ const MUSIC = [
   },
 ];
 
-const CROSSFADE_DURATION = 2; // seconds of crossfade between segments
+const CROSSFADE_DURATION = 4; // seconds of overlap between segments
 
 // ---- Resolve API key ----
 
@@ -155,30 +155,64 @@ async function fetchSFX(prompt, apiKey, durationSeconds) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// ---- ffmpeg crossfade concatenation ----
+// ---- ffmpeg preprocessing + crossfade concatenation ----
 
-function crossfadeSegments(segmentPaths, outputPath) {
+// Trim silence from start/end, normalize volume, add gentle fade in/out
+function preprocessSegment(inputPath, outputPath) {
+  const af = [
+    // Trim leading silence (below -45dB for >50ms)
+    'silenceremove=start_periods=1:start_silence=0.05:start_threshold=-45dB',
+    // Trim trailing silence (reverse, trim, reverse back)
+    'areverse',
+    'silenceremove=start_periods=1:start_silence=0.05:start_threshold=-45dB',
+    'areverse',
+    // Normalize loudness to consistent level
+    'loudnorm=I=-16:TP=-1.5:LRA=11',
+    // Gentle fade in/out so crossfade blends smoothly
+    'afade=t=in:d=1.5',
+    'afade=t=out:st=19:d=3',
+  ].join(',');
+  execSync(
+    `ffmpeg -y -i "${inputPath}" -af "${af}" -b:a 192k "${outputPath}"`,
+    { stdio: 'pipe' }
+  );
+}
+
+function crossfadeSegments(segmentPaths, outputPath, tmpDir) {
   if (segmentPaths.length === 0) throw new Error('No segments to concatenate');
   if (segmentPaths.length === 1) {
     fs.copyFileSync(segmentPaths[0], outputPath);
     return;
   }
 
-  // Build iteratively: merge segment 0+1, then result+2, then result+3, etc.
-  const tmpDir = path.dirname(outputPath);
-  let currentPath = segmentPaths[0];
+  // Pre-process each segment: trim silence, normalize, add fades
+  const prepDir = path.join(tmpDir, '_prepped');
+  fs.mkdirSync(prepDir, { recursive: true });
+  const preppedPaths = [];
 
-  for (let i = 1; i < segmentPaths.length; i++) {
-    const nextPath = segmentPaths[i];
-    const isLast = i === segmentPaths.length - 1;
+  for (let i = 0; i < segmentPaths.length; i++) {
+    const prepPath = path.join(prepDir, `prep_${String(i).padStart(2, '0')}.mp3`);
+    preppedPaths.push(prepPath);
+    if (!fs.existsSync(prepPath)) {
+      console.log(`    preprocess seg ${i + 1}/${segmentPaths.length}`);
+      preprocessSegment(segmentPaths[i], prepPath);
+    }
+  }
+
+  // Crossfade iteratively with equal-power (exp) curves
+  let currentPath = preppedPaths[0];
+
+  for (let i = 1; i < preppedPaths.length; i++) {
+    const nextPath = preppedPaths[i];
+    const isLast = i === preppedPaths.length - 1;
     const mergedPath = isLast ? outputPath : path.join(tmpDir, `_merge_tmp_${i}.mp3`);
 
     execSync(
-      `ffmpeg -y -i "${currentPath}" -i "${nextPath}" -filter_complex "acrossfade=d=${CROSSFADE_DURATION}:c1=tri:c2=tri" -b:a 192k "${mergedPath}"`,
+      `ffmpeg -y -i "${currentPath}" -i "${nextPath}" -filter_complex "acrossfade=d=${CROSSFADE_DURATION}:c1=exp:c2=exp" -b:a 192k "${mergedPath}"`,
       { stdio: 'pipe' }
     );
 
-    // Clean up intermediate merge file (but not original segments yet)
+    // Clean up intermediate merge file
     if (i >= 2) {
       const prevMerge = path.join(tmpDir, `_merge_tmp_${i - 1}.mp3`);
       if (fs.existsSync(prevMerge)) fs.unlinkSync(prevMerge);
@@ -186,6 +220,10 @@ function crossfadeSegments(segmentPaths, outputPath) {
 
     currentPath = mergedPath;
   }
+
+  // Clean up preprocessed files
+  preppedPaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+  if (fs.existsSync(prepDir)) fs.rmdirSync(prepDir);
 }
 
 // ---- Batch processing ----
@@ -195,10 +233,13 @@ async function sleep(ms) {
 }
 
 async function main() {
-  const apiKey = getApiKey();
-  if (!apiKey) {
+  const crossfadeOnly = process.argv.includes('--crossfade-only');
+
+  const apiKey = crossfadeOnly ? null : getApiKey();
+  if (!crossfadeOnly && !apiKey) {
     console.error('ERROR: No API key found.');
     console.error('Set ELEVENLABS_API_KEY env var or create public/config.js with the key.');
+    console.error('Or use --crossfade-only to re-crossfade existing segments.');
     process.exit(1);
   }
 
@@ -219,6 +260,10 @@ async function main() {
   let generated = 0, skipped = 0, failed = 0;
 
   // ---- Phase 1: Generate SFX ----
+  if (crossfadeOnly) {
+    console.log('\n=== Phase 1: Skipping SFX (--crossfade-only) ===');
+    SFX.forEach(item => { manifest[item.key] = `${item.key}.mp3`; });
+  } else {
   console.log(`\n=== Phase 1: Generating ${SFX.length} SFX files ===`);
 
   for (let i = 0; i < SFX.length; i++) {
@@ -244,6 +289,7 @@ async function main() {
 
     if (i < SFX.length - 1) await sleep(500);
   }
+  } // end if !crossfadeOnly
 
   // ---- Phase 2: Generate music (multi-segment + crossfade) ----
   const totalSegments = MUSIC.reduce((s, m) => s + m.variations.length, 0);
@@ -253,52 +299,67 @@ async function main() {
     const finalPath = path.join(outDir, `${track.key}.mp3`);
     manifest[track.key] = `${track.key}.mp3`;
 
-    if (fs.existsSync(finalPath)) {
+    if (!crossfadeOnly && fs.existsSync(finalPath)) {
       skipped++;
       console.log(`\n  [${track.key}] SKIP (already exists)`);
       continue;
     }
 
+    // Delete existing final file if re-crossfading
+    if (crossfadeOnly && fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
+
     const numSegs = track.variations.length;
     const expectedDuration = numSegs * 22 - (numSegs - 1) * CROSSFADE_DURATION;
-    console.log(`\n  [${track.key}] Generating ${numSegs} segments (~${Math.round(expectedDuration / 60)}m ${expectedDuration % 60}s)...`);
 
     const segPaths = [];
     let segFailed = false;
 
-    for (let s = 0; s < numSegs; s++) {
-      const segPath = path.join(segDir, `${track.key}_seg${String(s).padStart(2, '0')}.mp3`);
-      segPaths.push(segPath);
-
-      if (fs.existsSync(segPath)) {
-        console.log(`    seg ${s + 1}/${numSegs} SKIP`);
-        continue;
+    if (crossfadeOnly) {
+      console.log(`\n  [${track.key}] Re-crossfading ${numSegs} existing segments...`);
+      for (let s = 0; s < numSegs; s++) {
+        const segPath = path.join(segDir, `${track.key}_seg${String(s).padStart(2, '0')}.mp3`);
+        if (!fs.existsSync(segPath)) {
+          console.error(`    seg ${s + 1}/${numSegs} MISSING — cannot crossfade-only`);
+          segFailed = true; break;
+        }
+        segPaths.push(segPath);
       }
+    } else {
+      console.log(`\n  [${track.key}] Generating ${numSegs} segments (~${Math.round(expectedDuration / 60)}m ${expectedDuration % 60}s)...`);
+      for (let s = 0; s < numSegs; s++) {
+        const segPath = path.join(segDir, `${track.key}_seg${String(s).padStart(2, '0')}.mp3`);
+        segPaths.push(segPath);
 
-      const prompt = `${track.base}, ${track.variations[s]}`;
-      try {
-        const buf = await fetchSFX(prompt, apiKey, 22);
-        fs.writeFileSync(segPath, buf);
-        generated++;
-        console.log(`    seg ${s + 1}/${numSegs} OK`);
-      } catch (e) {
-        failed++;
-        segFailed = true;
-        console.error(`    seg ${s + 1}/${numSegs} FAIL: ${e.message}`);
+        if (fs.existsSync(segPath)) {
+          console.log(`    seg ${s + 1}/${numSegs} SKIP`);
+          continue;
+        }
+
+        const prompt = `${track.base}, ${track.variations[s]}`;
+        try {
+          const buf = await fetchSFX(prompt, apiKey, 22);
+          fs.writeFileSync(segPath, buf);
+          generated++;
+          console.log(`    seg ${s + 1}/${numSegs} OK`);
+        } catch (e) {
+          failed++;
+          segFailed = true;
+          console.error(`    seg ${s + 1}/${numSegs} FAIL: ${e.message}`);
+        }
+
+        await sleep(500);
       }
-
-      await sleep(500);
     }
 
     if (segFailed) {
-      console.error(`  [${track.key}] Skipping crossfade — some segments failed`);
+      console.error(`  [${track.key}] Skipping crossfade — some segments failed or missing`);
       continue;
     }
 
     // Crossfade all segments into final track
     console.log(`  [${track.key}] Crossfading ${numSegs} segments with ffmpeg...`);
     try {
-      crossfadeSegments(segPaths, finalPath);
+      crossfadeSegments(segPaths, finalPath, segDir);
       console.log(`  [${track.key}] DONE -> ${track.key}.mp3`);
     } catch (e) {
       failed++;
@@ -306,11 +367,13 @@ async function main() {
     }
   }
 
-  // ---- Cleanup segment files ----
-  console.log('\nCleaning up temporary segments...');
-  if (fs.existsSync(segDir)) {
+  // Keep segments for potential re-crossfading (use --clean to remove)
+  if (process.argv.includes('--clean') && fs.existsSync(segDir)) {
+    console.log('\nCleaning up segments...');
     fs.readdirSync(segDir).forEach(f => fs.unlinkSync(path.join(segDir, f)));
     fs.rmdirSync(segDir);
+  } else if (fs.existsSync(segDir)) {
+    console.log(`\nSegments kept in ${segDir} (use --clean to remove)`);
   }
 
   // Write manifest
