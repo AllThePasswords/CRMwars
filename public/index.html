@@ -572,10 +572,23 @@ function unmuteMusic(){
   bgMusic.play().catch(()=>{});
 }
 
-// ---- TITLE SCREEN MUSIC ----
-document.getElementById('titleScreen').addEventListener('click', function() {
-  initMusic(); unmuteMusic();
-}, { once: true });
+// ---- TITLE SCREEN MUSIC (fade in on first interaction) ----
+function startTitleMusic(){
+  initMusic();
+  if(!bgMusic||musicUnmuted)return;
+  musicUnmuted=true;
+  bgMusic.volume=0;
+  bgMusic.play().catch(()=>{});
+  let fadeVol=0;
+  const fadeIn=setInterval(()=>{
+    fadeVol=Math.min(musicVolume,fadeVol+musicVolume/40);
+    bgMusic.volume=fadeVol;
+    if(fadeVol>=musicVolume)clearInterval(fadeIn);
+  },50);
+}
+['mousemove','click','keydown','touchstart','scroll'].forEach(evt=>{
+  document.addEventListener(evt,startTitleMusic,{once:true});
+});
 
 // ---- GLOBAL CLICK SFX INTERCEPTOR ----
 document.body.addEventListener('click',function(e){
