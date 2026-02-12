@@ -1,0 +1,9 @@
+{
+  "name": "crmwars",
+  "version": "1.0.0",
+  "description": "CRM Wars — Command & Conquer the Market. A retro RTS game where startup sales teams battle for customers across the UK & Ireland.",
+  "scripts": {
+    "dev": "npx serve public",
+    "build": "echo 'Static site, no build needed'"
+  }
+}
