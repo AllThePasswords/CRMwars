@@ -117,7 +117,6 @@ const MUSIC = [
   },
 ];
 
-const CROSSFADE_DURATION = 6; // seconds of overlap between segments
 
 // ---- Resolve API key ----
 
@@ -155,72 +154,70 @@ async function fetchSFX(prompt, apiKey, durationSeconds) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// ---- ffmpeg preprocessing + crossfade concatenation ----
+// ---- ffmpeg overlap + mix concatenation ----
+// Each 22s segment naturally fades out at end and fades in at start.
+// We overlap them so the fade-out of one plays simultaneously with
+// the fade-in of the next — producing seamless transitions.
 
-// Trim silence from start/end and normalize volume (no manual fades — acrossfade handles transitions)
-function preprocessSegment(inputPath, outputPath) {
-  const af = [
-    // Trim leading silence (below -45dB for >50ms)
-    'silenceremove=start_periods=1:start_silence=0.05:start_threshold=-45dB',
-    // Trim trailing silence (reverse, trim, reverse back)
-    'areverse',
-    'silenceremove=start_periods=1:start_silence=0.05:start_threshold=-45dB',
-    'areverse',
-    // Normalize loudness to consistent level
-    'loudnorm=I=-16:TP=-1.5:LRA=11',
-  ].join(',');
-  execSync(
-    `ffmpeg -y -i "${inputPath}" -af "${af}" -b:a 192k "${outputPath}"`,
-    { stdio: 'pipe' }
-  );
-}
+const SEGMENT_SPACING = 16; // seconds between segment starts (22s - 6s overlap)
 
-function crossfadeSegments(segmentPaths, outputPath, tmpDir) {
-  if (segmentPaths.length === 0) throw new Error('No segments to concatenate');
+function mergeSegments(segmentPaths, outputPath) {
+  if (segmentPaths.length === 0) throw new Error('No segments to merge');
   if (segmentPaths.length === 1) {
     fs.copyFileSync(segmentPaths[0], outputPath);
     return;
   }
 
-  // Pre-process each segment: trim silence, normalize, add fades
-  const prepDir = path.join(tmpDir, '_prepped');
-  fs.mkdirSync(prepDir, { recursive: true });
-  const preppedPaths = [];
+  const n = segmentPaths.length;
 
-  for (let i = 0; i < segmentPaths.length; i++) {
-    const prepPath = path.join(prepDir, `prep_${String(i).padStart(2, '0')}.mp3`);
-    preppedPaths.push(prepPath);
-    if (!fs.existsSync(prepPath)) {
-      console.log(`    preprocess seg ${i + 1}/${segmentPaths.length}`);
-      preprocessSegment(segmentPaths[i], prepPath);
+  // Build ffmpeg inputs
+  const inputs = segmentPaths.map(p => `-i "${p}"`).join(' ');
+
+  // Build filter: delay each segment by i * SEGMENT_SPACING seconds, then amix all
+  const filters = [];
+  for (let i = 0; i < n; i++) {
+    if (i === 0) {
+      filters.push(`[0]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[s0]`);
+    } else {
+      const delayMs = i * SEGMENT_SPACING * 1000;
+      filters.push(`[${i}]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,adelay=${delayMs}|${delayMs}[s${i}]`);
     }
   }
 
-  // Crossfade iteratively with equal-power (exp) curves
-  let currentPath = preppedPaths[0];
+  const mixInputs = Array.from({ length: n }, (_, i) => `[s${i}]`).join('');
+  filters.push(`${mixInputs}amix=inputs=${n}:duration=longest:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11`);
 
-  for (let i = 1; i < preppedPaths.length; i++) {
-    const nextPath = preppedPaths[i];
-    const isLast = i === preppedPaths.length - 1;
-    const mergedPath = isLast ? outputPath : path.join(tmpDir, `_merge_tmp_${i}.mp3`);
+  const filterStr = filters.join(';');
 
-    execSync(
-      `ffmpeg -y -i "${currentPath}" -i "${nextPath}" -filter_complex "acrossfade=d=${CROSSFADE_DURATION}:c1=exp:c2=exp" -b:a 192k "${mergedPath}"`,
-      { stdio: 'pipe' }
-    );
+  execSync(
+    `ffmpeg -y ${inputs} -filter_complex "${filterStr}" -b:a 192k "${outputPath}"`,
+    { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 }
+  );
+}
 
-    // Clean up intermediate merge file
-    if (i >= 2) {
-      const prevMerge = path.join(tmpDir, `_merge_tmp_${i - 1}.mp3`);
-      if (fs.existsSync(prevMerge)) fs.unlinkSync(prevMerge);
+// Verify the output has no silence gaps
+function verifyContinuousAudio(filePath) {
+  const result = execSync(
+    `ffmpeg -i "${filePath}" -af silencedetect=noise=-30dB:d=0.5 -f null - 2>&1`,
+    { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }
+  );
+  const gaps = [];
+  const lines = result.split('\n');
+  for (const line of lines) {
+    const startMatch = line.match(/silence_start:\s*([\d.]+)/);
+    const endMatch = line.match(/silence_end:\s*([\d.]+)\s*\|\s*silence_duration:\s*([\d.]+)/);
+    if (startMatch) gaps.push({ start: parseFloat(startMatch[1]) });
+    if (endMatch && gaps.length > 0) {
+      gaps[gaps.length - 1].end = parseFloat(endMatch[1]);
+      gaps[gaps.length - 1].duration = parseFloat(endMatch[2]);
     }
-
-    currentPath = mergedPath;
   }
-
-  // Clean up preprocessed files
-  preppedPaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
-  if (fs.existsSync(prepDir)) fs.rmdirSync(prepDir);
+  // Filter out start/end silence (first 1s and last 1s)
+  const duration = parseFloat(
+    execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`, { encoding: 'utf8' }).trim()
+  );
+  const interiorGaps = gaps.filter(g => g.start > 1 && (g.end || 0) < duration - 1);
+  return { gaps: interiorGaps, duration, totalGaps: gaps.length };
 }
 
 // ---- Batch processing ----
@@ -306,7 +303,7 @@ async function main() {
     if (crossfadeOnly && fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
 
     const numSegs = track.variations.length;
-    const expectedDuration = numSegs * 22 - (numSegs - 1) * CROSSFADE_DURATION;
+    const expectedDuration = 22 + (numSegs - 1) * SEGMENT_SPACING;
 
     const segPaths = [];
     let segFailed = false;
@@ -353,14 +350,23 @@ async function main() {
       continue;
     }
 
-    // Crossfade all segments into final track
-    console.log(`  [${track.key}] Crossfading ${numSegs} segments with ffmpeg...`);
+    // Merge all segments with overlap into final track
+    const expectedDur = 22 + (numSegs - 1) * SEGMENT_SPACING;
+    console.log(`  [${track.key}] Merging ${numSegs} segments (${SEGMENT_SPACING}s spacing, ~${Math.round(expectedDur / 60)}m${expectedDur % 60}s)...`);
     try {
-      crossfadeSegments(segPaths, finalPath, segDir);
+      mergeSegments(segPaths, finalPath);
+      // Verify no silence gaps
+      const check = verifyContinuousAudio(finalPath);
+      if (check.gaps.length > 0) {
+        console.warn(`  [${track.key}] WARNING: ${check.gaps.length} silence gaps detected:`);
+        check.gaps.forEach(g => console.warn(`    ${g.start.toFixed(1)}s - ${(g.end||0).toFixed(1)}s (${(g.duration||0).toFixed(1)}s)`));
+      } else {
+        console.log(`  [${track.key}] VERIFIED: No silence gaps. Duration: ${Math.round(check.duration)}s`);
+      }
       console.log(`  [${track.key}] DONE -> ${track.key}.mp3`);
     } catch (e) {
       failed++;
-      console.error(`  [${track.key}] CROSSFADE FAIL: ${e.message}`);
+      console.error(`  [${track.key}] MERGE FAIL: ${e.message}`);
     }
   }
 
