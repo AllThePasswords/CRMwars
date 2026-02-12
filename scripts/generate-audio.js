@@ -117,7 +117,7 @@ const MUSIC = [
   },
 ];
 
-const CROSSFADE_DURATION = 4; // seconds of overlap between segments
+const CROSSFADE_DURATION = 6; // seconds of overlap between segments
 
 // ---- Resolve API key ----
 
@@ -157,7 +157,7 @@ async function fetchSFX(prompt, apiKey, durationSeconds) {
 
 // ---- ffmpeg preprocessing + crossfade concatenation ----
 
-// Trim silence from start/end, normalize volume, add gentle fade in/out
+// Trim silence from start/end and normalize volume (no manual fades — acrossfade handles transitions)
 function preprocessSegment(inputPath, outputPath) {
   const af = [
     // Trim leading silence (below -45dB for >50ms)
@@ -168,9 +168,6 @@ function preprocessSegment(inputPath, outputPath) {
     'areverse',
     // Normalize loudness to consistent level
     'loudnorm=I=-16:TP=-1.5:LRA=11',
-    // Gentle fade in/out so crossfade blends smoothly
-    'afade=t=in:d=1.5',
-    'afade=t=out:st=19:d=3',
   ].join(',');
   execSync(
     `ffmpeg -y -i "${inputPath}" -af "${af}" -b:a 192k "${outputPath}"`,

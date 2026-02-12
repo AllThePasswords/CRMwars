@@ -364,7 +364,12 @@ const VOICE_LINES={
     enemyGrowing:["They're pulling ahead.","Competitor is gaining ground.","We need to pick up the pace."],
     acquisition:["Initiating hostile takeover!","M and A department activated.","Preparing acquisition paperwork."],
     acquisitionComplete:["Acquisition complete! Their customers are ours.","Hostile takeover successful!","We just bought the competition."],
-    acquisitionThreat:["Hostile takeover incoming! Shore up the balance sheet!","They're trying to acquire us! Get cash above fifty K!","M and A threat detected. We need revenue, now!"]
+    acquisitionThreat:["Hostile takeover incoming! Shore up the balance sheet!","They're trying to acquire us! Get cash above fifty K!","M and A threat detected. We need revenue, now!"],
+    firstDeal:["First deal! We're in business!","Our first customer. Let's get more!"],
+    share50:["You control half the market!","Fifty percent market share. Dominant."],
+    share75:["Seventy-five percent! Total domination is near."],
+    idleUnits:["Idle reps detected. Deploy them!","We have reps sitting around. Put them to work."],
+    bleeding:["We're bleeding cash.","Burn rate exceeds revenue. Cut costs or close deals."]
   }
 };
 
@@ -1459,16 +1464,16 @@ function gameTick(){
   const _pShare=TOTAL_CUST>0?player.customers.length/TOTAL_CUST:0;
   const _eShare=TOTAL_CUST>0?Math.max(...getOpponents(player).map(p=>p.customers.length))/TOTAL_CUST:0;
   if(_pShare>=0.25&&!voiceMilestones.has('share25')){voiceMilestones.add('share25');voiceSystem('winCondProgress')}
-  if(_pShare>=0.50&&!voiceMilestones.has('share50')){voiceMilestones.add('share50');speakRandom(["You control half the market!","Fifty percent market share. Dominant."],'system')}
-  if(_pShare>=0.75&&!voiceMilestones.has('share75')){voiceMilestones.add('share75');speakRandom(["Seventy-five percent! Total domination is near."],'system')}
+  if(_pShare>=0.50&&!voiceMilestones.has('share50')){voiceMilestones.add('share50');voiceSystem('share50')}
+  if(_pShare>=0.75&&!voiceMilestones.has('share75')){voiceMilestones.add('share75');voiceSystem('share75')}
   if(player.cash<100&&player.cash>0&&!voiceMilestones.has('lowCash')){voiceMilestones.add('lowCash');voiceSystem('lowCash')}
   if(player.cash>=100&&voiceMilestones.has('lowCash'))voiceMilestones.delete('lowCash'); // allow re-fire if cash recovers and drops again
-  if(player.customers.length===1&&!voiceMilestones.has('firstDeal')){voiceMilestones.add('firstDeal');speakRandom(["First deal! We're in business!","Our first customer. Let's get more!"],'system')}
+  if(player.customers.length===1&&!voiceMilestones.has('firstDeal')){voiceMilestones.add('firstDeal');voiceSystem('firstDeal')}
   if(_eShare>=0.50&&!voiceMilestones.has('enemyDom')){voiceMilestones.add('enemyDom');voiceSystem('enemyGrowing')}
   // Idle units warning
-  if(gameTime%20===0){const idleCount=player.units.filter(u=>u.state==='idle'&&u.type!=='service_rep').length;if(idleCount>=2&&!voiceMilestones.has('idle'+gameTime)){voiceMilestones.add('idle'+gameTime);speakRandom(["Idle reps detected. Deploy them!","We have reps sitting around. Put them to work."],'system')}}
+  if(gameTime%20===0){const idleCount=player.units.filter(u=>u.state==='idle'&&u.type!=='service_rep').length;if(idleCount>=2&&!voiceMilestones.has('idle'+gameTime)){voiceMilestones.add('idle'+gameTime);voiceSystem('idleUnits')}}
   // Burn > MRR warning
-  if(gameTime%5===0){const sal=player.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);if(sal>player.arr&&player.arr>0){burnExceedsMRRCount++}else{burnExceedsMRRCount=0}if(burnExceedsMRRCount>=3&&!voiceMilestones.has('bleeding')){voiceMilestones.add('bleeding');speakRandom(["We're bleeding cash.","Burn rate exceeds revenue. Cut costs or close deals."],'system')}}
+  if(gameTime%5===0){const sal=player.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);if(sal>player.arr&&player.arr>0){burnExceedsMRRCount++}else{burnExceedsMRRCount=0}if(burnExceedsMRRCount>=3&&!voiceMilestones.has('bleeding')){voiceMilestones.add('bleeding');voiceSystem('bleeding')}}
   // Battle music auto-trigger
   if(!battleMusicTriggered&&gameRunning){
     const maxShare=Math.max(...players.map(p=>p.customers.length))/TOTAL_CUST;

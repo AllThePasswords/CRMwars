@@ -170,5 +170,14 @@
   "We just bought the competition.||system": "system-acquisitionComplete-2.mp3",
   "Hostile takeover incoming! Shore up the balance sheet!||system": "system-acquisitionThreat-0.mp3",
   "They're trying to acquire us! Get cash above fifty K!||system": "system-acquisitionThreat-1.mp3",
-  "M and A threat detected. We need revenue, now!||system": "system-acquisitionThreat-2.mp3"
+  "M and A threat detected. We need revenue, now!||system": "system-acquisitionThreat-2.mp3",
+  "First deal! We're in business!||system": "system-firstDeal-0.mp3",
+  "Our first customer. Let's get more!||system": "system-firstDeal-1.mp3",
+  "You control half the market!||system": "system-share50-0.mp3",
+  "Fifty percent market share. Dominant.||system": "system-share50-1.mp3",
+  "Seventy-five percent! Total domination is near.||system": "system-share75-0.mp3",
+  "Idle reps detected. Deploy them!||system": "system-idleUnits-0.mp3",
+  "We have reps sitting around. Put them to work.||system": "system-idleUnits-1.mp3",
+  "We're bleeding cash.||system": "system-bleeding-0.mp3",
+  "Burn rate exceeds revenue. Cut costs or close deals.||system": "system-bleeding-1.mp3"
 }

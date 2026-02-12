@@ -52,7 +52,12 @@ const VOICE_LINES = {
     enemyGrowing: ["They're pulling ahead.", "Competitor is gaining ground.", "We need to pick up the pace."],
     acquisition: ["Initiating hostile takeover!", "M and A department activated.", "Preparing acquisition paperwork."],
     acquisitionComplete: ["Acquisition complete! Their customers are ours.", "Hostile takeover successful!", "We just bought the competition."],
-    acquisitionThreat: ["Hostile takeover incoming! Shore up the balance sheet!", "They're trying to acquire us! Get cash above fifty K!", "M and A threat detected. We need revenue, now!"]
+    acquisitionThreat: ["Hostile takeover incoming! Shore up the balance sheet!", "They're trying to acquire us! Get cash above fifty K!", "M and A threat detected. We need revenue, now!"],
+    firstDeal: ["First deal! We're in business!", "Our first customer. Let's get more!"],
+    share50: ["You control half the market!", "Fifty percent market share. Dominant."],
+    share75: ["Seventy-five percent! Total domination is near."],
+    idleUnits: ["Idle reps detected. Deploy them!", "We have reps sitting around. Put them to work."],
+    bleeding: ["We're bleeding cash.", "Burn rate exceeds revenue. Cut costs or close deals."]
   }
 };
 
