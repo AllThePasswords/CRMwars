@@ -46,6 +46,19 @@ canvas#gameCanvas{display:block;width:100%;height:100%}
 [data-tooltip]{position:relative}
 [data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(10,10,18,0.95);color:#c8c8d0;border:1px solid var(--green-dim);padding:4px 10px;font-size:10px;font-family:'Share Tech Mono',monospace;z-index:30;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:220px;white-space:normal;text-align:center;line-height:1.4}
 #trackSelect option{background:#12131f;color:var(--text)}
+#exitGameBtn:hover{background:rgba(255,51,51,0.18)!important;border-color:rgba(255,51,51,0.5)!important}
+#exitConfirm{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;flex-direction:column;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace}
+#exitConfirm.open{display:flex}
+#exitConfirm .exit-box{background:rgba(18,19,31,0.98);border:1px solid var(--panel-border);padding:28px 36px;text-align:center;max-width:360px;border-radius:4px;box-shadow:0 8px 32px rgba(0,0,0,0.6)}
+#exitConfirm h3{font-family:'Orbitron',sans-serif;font-size:16px;color:var(--red);margin:0 0 12px;letter-spacing:2px}
+#exitConfirm p{font-size:12px;color:#888;margin:0 0 20px;line-height:1.6}
+#exitConfirm button{font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px 20px;margin:0 6px;cursor:pointer;border-radius:2px}
+.exit-btn-quit{background:rgba(255,51,51,0.15);border:1px solid rgba(255,51,51,0.4);color:#ff4444}
+.exit-btn-quit:hover{background:rgba(255,51,51,0.3)}
+.exit-btn-liq{background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.4);color:var(--gold)}
+.exit-btn-liq:hover{background:rgba(255,215,0,0.25)}
+.exit-btn-cancel{background:rgba(255,255,255,0.05);border:1px solid #2a2a3a;color:#888}
+.exit-btn-cancel:hover{background:rgba(255,255,255,0.1)}
 .scroll-zone{position:absolute;z-index:5}
 .scroll-zone-top{top:48px;left:0;right:260px;height:30px}
 .scroll-zone-bottom{bottom:40px;left:0;right:260px;height:30px}
@@ -274,6 +287,9 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
   <div class="settings-row"><label>Music Volume</label><div class="slider-wrap"><input type="range" id="musicSlider" min="0" max="100" value="30" step="5" oninput="setMusicVolume(this.value)"><span id="musicLabel">30%</span></div></div>
   <div class="settings-row"><label>Music Track</label><div class="slider-wrap"><select id="trackSelect" onchange="switchMusic(this.value)" style="flex:1;background:#1e2035;border:1px solid #2a2a3a;color:var(--green);font-family:'Share Tech Mono',monospace;font-size:12px;padding:4px 8px;outline:none;cursor:pointer"><option value="title">Atmospheric</option><option value="game" selected>Strategic</option><option value="battle">Intense</option></select></div></div>
   <div class="settings-row"><label>UI Scale</label><div class="slider-wrap"><input type="range" id="uiScaleSlider" min="80" max="150" value="100" step="10" oninput="setUIScale(this.value)"><span id="uiScaleLabel">100%</span></div></div>
+  <div style="border-top:1px solid var(--panel-border);margin-top:6px;padding-top:10px">
+    <button id="exitGameBtn" onclick="exitGame()" style="width:100%;background:rgba(255,51,51,0.08);border:1px solid rgba(255,51,51,0.3);color:#ff4444;font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px;cursor:pointer;display:none">EXIT GAME</button>
+  </div>
 </div>
 <div id="rightPanel">
   <div class="panel-section" style="padding:8px"><div class="panel-title">🗺 Map</div><canvas id="minimap" style="display:block;cursor:crosshair"></canvas></div>
@@ -292,6 +308,7 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
 </div>
 <div id="gameOver"><h2 id="goTitle"></h2><div class="go-stats" id="goStats"></div>
 <button class="menu-btn" onclick="location.reload()" style="border-color:var(--green-dim);color:var(--green)">PLAY AGAIN</button></div>
+<div id="exitConfirm" onclick="if(event.target===this)cancelExit()"><div class="exit-box"></div></div>
 <div id="infoModal" onclick="if(event.target===this)closeInfo()"><div id="infoModalContent"></div></div>
 <script>
 // =============================================
@@ -1152,6 +1169,7 @@ function startGame(isMultiplayer){
   switchMusic('game');
   document.getElementById('titleScreen').style.display='none';
   document.getElementById('gameContainer').style.display='block';
+  document.getElementById('exitGameBtn').style.display='block';
   canvas=document.getElementById('gameCanvas');ctx=canvas.getContext('2d');
   mmCanvas=document.getElementById('minimap');mmCtx=mmCanvas.getContext('2d');
   resizeCanvas();window.addEventListener('resize',resizeCanvas);
@@ -2617,6 +2635,50 @@ function hireUnit(type){if(player.cash<UNITS_DEF[type].cost)return;
 function resTech(k){if(player.cash<TECHS[k].cost||player.tech[k])return;player.cash-=TECHS[k].cost;player.tech[k]='building';player.techBuild=player.techBuild||{};player.techBuild[k]={bp:0,bt:TECHS[k].buildTime};addLog('Researching '+TECHS[k].name+'...','neutral');showToast('🔬 '+TECHS[k].name+'!');voiceSystem('researching');lastBtnRebuild=0;updateUI();
   if(mpMode)mpActionQueue.push({type:'research',tech:k})}
 function toggleSettings(){document.getElementById('settingsPanel').classList.toggle('open')}
+function exitGame(){
+  toggleSettings();
+  gameRunning=false; // pause while dialog is open
+  const box=document.querySelector('#exitConfirm .exit-box');
+  if(mpMode){
+    box.innerHTML=`<h3>LEAVE GAME</h3>
+      <p>You're in a multiplayer match. You can liquidate your company (go bankrupt, opponents win) or cancel and keep playing.</p>
+      <div><button class="exit-btn-liq" onclick="confirmLiquidate()">LIQUIDATE &amp; QUIT</button>
+      <button class="exit-btn-cancel" onclick="cancelExit()">KEEP PLAYING</button></div>`;
+  } else {
+    box.innerHTML=`<h3>EXIT GAME</h3>
+      <p>Abandon the current game and return to the title screen? All progress will be lost.</p>
+      <div><button class="exit-btn-quit" onclick="confirmExit()">QUIT TO TITLE</button>
+      <button class="exit-btn-cancel" onclick="cancelExit()">KEEP PLAYING</button></div>`;
+  }
+  document.getElementById('exitConfirm').classList.add('open');
+}
+function cancelExit(){
+  document.getElementById('exitConfirm').classList.remove('open');
+  gameRunning=true;
+  requestAnimationFrame(gameLoop);
+}
+function confirmExit(){
+  document.getElementById('exitConfirm').classList.remove('open');
+  document.getElementById('gameOver').style.display='none';
+  document.getElementById('gameContainer').style.display='none';
+  document.getElementById('titleScreen').style.display='';
+  document.getElementById('exitGameBtn').style.display='none';
+  switchMusic('title');
+  if(mpPollTimer){clearInterval(mpPollTimer);mpPollTimer=null}
+  mpMode=false;
+}
+function confirmLiquidate(){
+  document.getElementById('exitConfirm').classList.remove('open');
+  // Zero out player — triggers bankruptcy/elimination
+  player.cash=0;player.arr=0;player.mrr=0;
+  player.customers.forEach(c=>{c.owner=null;freeCust.push(c)});
+  player.customers=[];
+  player.units=[];
+  gameRunning=true;
+  requestAnimationFrame(gameLoop);
+  addLog('*** '+player.name+' has liquidated! ***','negative');
+  endGame(false,'bankrupt');
+}
 function onSpeedSlider(v){speedMul=parseFloat(v);document.getElementById('speedLabel').textContent=v+'x'}
 function setUIScale(v){const s=parseInt(v)/100;document.getElementById('uiScaleLabel').textContent=v+'%';['topBar','rightPanel','bottomBar'].forEach(id=>{const el=document.getElementById(id);if(el){el.style.transform='scale('+s+')';el.style.transformOrigin=id==='topBar'?'top left':id==='rightPanel'?'top right':'bottom left'}})}
 function toggleSpeed(){const sp=[1,2,4,8];speedMul=sp[(sp.indexOf(speedMul)+1)%sp.length];document.getElementById('speedSlider').value=speedMul;document.getElementById('speedLabel').textContent=speedMul+'x'}
