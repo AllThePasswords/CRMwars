@@ -287,7 +287,6 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
 <div id="gameOver"><h2 id="goTitle"></h2><div class="go-stats" id="goStats"></div>
 <button class="menu-btn" onclick="location.reload()" style="border-color:var(--green-dim);color:var(--green)">PLAY AGAIN</button></div>
 <div id="infoModal" onclick="if(event.target===this)closeInfo()"><div id="infoModalContent"></div></div>
-<script src="config.js"></script>
 <script>
 // =============================================
 //  CRM WARS v4 — TERRITORY MAP (UK & Ireland)
@@ -357,124 +356,61 @@ const VOICE_CONFIG={
   system:{pitch:1.1,rate:1.0}
 };
 
-// ---- ELEVENLABS TTS ----
-const ELEVEN_VOICES={
-  sales_rep:    'JBFqnCBsd6RMkjVDRZzb', // Rachel - warm, friendly
-  sr_sales_rep: 'EXAVITQu4vr4xnSDxMaL', // Bella - confident
-  marketer:     'MF3mGyEYCl7XYWbV9V6O', // Emily - energetic
-  service_rep:  'ThT5KcBeYPX3keUQqHPh', // Dorothy - calm, supportive
-  ai_agent:     'VR6AewLTigWG4xSOukaG', // Arnold - deep/robotic
-  talent_acq:   'pNInz6obpgDQGcFmaJgB', // Adam - authoritative
-  system:       'ErXwobaYiN019PkySvjV', // Antoni - neutral narrator
-};
-const elevenCache=new Map(); // key: text+type → blob URL
-const elevenLabsKey=(typeof ELEVENLABS_API_KEY!=='undefined'&&ELEVENLABS_API_KEY)||'';
+// ---- STATIC VOICE PLAYBACK ----
+let voiceManifest=null; // manifest.json lookup: cacheKey → filename
+const voiceBlobCache=new Map(); // in-memory: cacheKey → blob URL (same-session replay speed)
+
+// Load manifest on startup — if it fails, browser TTS fallback is used
+fetch('voices/manifest.json').then(r=>{
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}).then(m=>{
+  voiceManifest=m;
+  console.log('Voice manifest loaded: '+Object.keys(m).length+' lines');
+}).catch(()=>{
+  console.log('No voice manifest found — using browser TTS fallback');
+});
+
+function playStaticAudio(url){
+  const audio=new Audio(url);
+  audio.volume=0.7;
+  const advance=()=>{
+    voiceBusy=false;
+    if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+  };
+  audio.onended=advance;
+  audio.onerror=advance;
+  audio.play().catch(advance);
+}
 
 function elevenSpeak(text,type){
   const cacheKey=text+'||'+type;
-  if(elevenCache.has(cacheKey)){
-    const audio=new Audio(elevenCache.get(cacheKey));
-    audio.volume=0.7;
-    audio.onended=()=>{
-      voiceBusy=false;
-      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
-    };
-    audio.onerror=()=>{
-      voiceBusy=false;
-      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
-    };
-    audio.play().catch(()=>{
-      voiceBusy=false;
-      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
+
+  // 1. Check in-memory blob URL cache (instant replay)
+  if(voiceBlobCache.has(cacheKey)){
+    playStaticAudio(voiceBlobCache.get(cacheKey));
+    return;
+  }
+
+  // 2. Look up in manifest and play static file
+  if(voiceManifest&&voiceManifest[cacheKey]){
+    const url='voices/'+voiceManifest[cacheKey];
+    // Fetch as blob for same-session caching
+    fetch(url).then(r=>{
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.blob();
+    }).then(blob=>{
+      const blobUrl=URL.createObjectURL(blob);
+      voiceBlobCache.set(cacheKey,blobUrl);
+      playStaticAudio(blobUrl);
+    }).catch(()=>{
+      browserSpeak(text,type);
     });
     return;
   }
-  const voiceId=ELEVEN_VOICES[type]||ELEVEN_VOICES.system;
-  fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voiceId,{
-    method:'POST',
-    headers:{'xi-api-key':elevenLabsKey,'Content-Type':'application/json'},
-    body:JSON.stringify({text,model_id:'eleven_multilingual_v2'})
-  }).then(r=>{
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    return r.blob();
-  }).then(blob=>{
-    const url=URL.createObjectURL(blob);
-    elevenCache.set(cacheKey,url);
-    const audio=new Audio(url);
-    audio.volume=0.7;
-    audio.onended=()=>{
-      voiceBusy=false;
-      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
-    };
-    audio.onerror=()=>{
-      voiceBusy=false;
-      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
-    };
-    audio.play().catch(()=>{
-      voiceBusy=false;
-      if(voiceQueue.length>0){const next=voiceQueue.shift();speak(next.text,next.type)}
-    });
-  }).catch(e=>{
-    console.warn('ElevenLabs failed, falling back to browser TTS:',e);
-    browserSpeak(text,type);
-  });
-}
 
-function getAllVoiceLines(){
-  const lines=[];
-  for(const[type,arr] of Object.entries(VOICE_LINES.select)){for(const t of arr)lines.push({text:t,type})}
-  for(const[type,arr] of Object.entries(VOICE_LINES.command)){for(const t of arr)lines.push({text:t,type})}
-  for(const[key,val] of Object.entries(VOICE_LINES.system)){
-    if(key==='trainComplete'){
-      for(const[subtype,arr] of Object.entries(val)){for(const t of arr)lines.push({text:t,type:subtype})}
-    } else if(Array.isArray(val)){
-      for(const t of val)lines.push({text:t,type:'system'})
-    }
-  }
-  return lines;
-}
-
-function preloadAllVoices(){
-  if(!elevenLabsKey)return;
-  const lines=getAllVoiceLines();
-  const total=lines.length;
-  let done=0,failed=0;
-
-  // Process in batches of 3 to avoid rate limits
-  let idx=0;
-  function nextBatch(){
-    if(idx>=total){
-      console.log('ElevenLabs preload complete: '+done+'/'+total+(failed?' ('+failed+' failed)':''));
-      return;
-    }
-    const batch=lines.slice(idx,idx+3);
-    idx+=3;
-    Promise.all(batch.map(line=>{
-      const cacheKey=line.text+'||'+line.type;
-      if(elevenCache.has(cacheKey)){done++;return Promise.resolve()}
-      const voiceId=ELEVEN_VOICES[line.type]||ELEVEN_VOICES.system;
-      return fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voiceId,{
-        method:'POST',
-        headers:{'xi-api-key':elevenLabsKey,'Content-Type':'application/json'},
-        body:JSON.stringify({text:line.text,model_id:'eleven_multilingual_v2'})
-      }).then(r=>{
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        return r.blob();
-      }).then(blob=>{
-        elevenCache.set(cacheKey,URL.createObjectURL(blob));
-        done++;
-      }).catch(()=>{failed++;done++});
-    })).then(()=>{
-      setTimeout(nextBatch,200); // small delay between batches
-    });
-  }
-  nextBatch();
-}
-
-// Auto-preload all voice lines if ElevenLabs key is configured
-if(elevenLabsKey){
-  console.log('ElevenLabs TTS enabled — preloading voice lines...');
-  preloadAllVoices();
+  // 3. No manifest or line not found — browser TTS fallback
+  browserSpeak(text,type);
 }
 
 let voiceEnabled=true,voiceQueue=[],voiceBusy=false,lastVoiceTime=0;
@@ -515,13 +451,13 @@ function browserSpeak(text,type){
 
 function speak(text,type){
   if(!voiceEnabled)return;
-  if(!elevenLabsKey&&!window.speechSynthesis)return;
+  if(!voiceManifest&&!window.speechSynthesis)return;
   if(voiceBusy){
     if(voiceQueue.length<3)voiceQueue.push({text,type});
     return;
   }
   voiceBusy=true;
-  if(elevenLabsKey){
+  if(voiceManifest){
     elevenSpeak(text,type);
   } else {
     browserSpeak(text,type);
