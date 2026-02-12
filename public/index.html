@@ -267,6 +267,8 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
   <div class="settings-row"><label>Grid Opacity</label><div class="slider-wrap"><input type="range" id="gridSlider" min="0" max="100" value="40" step="5" oninput="gridOpacity=this.value/100;document.getElementById('gridLabel').textContent=this.value+'%';prerenderMap()"><span id="gridLabel">40%</span></div></div>
   <div class="settings-row"><label>Show Labels</label><div class="slider-wrap"><input type="checkbox" id="labelToggle" checked onchange="showLabels=this.checked;prerenderMap()"></div></div>
   <div class="settings-row"><label>Voice Feedback</label><div class="slider-wrap"><input type="checkbox" id="voiceToggle" checked onchange="voiceEnabled=this.checked"></div></div>
+  <div class="settings-row"><label>SFX Volume</label><div class="slider-wrap"><input type="range" id="sfxSlider" min="0" max="100" value="50" step="5" oninput="setSFXVolume(this.value)"><span id="sfxLabel">50%</span></div></div>
+  <div class="settings-row"><label>Music Volume</label><div class="slider-wrap"><input type="range" id="musicSlider" min="0" max="100" value="30" step="5" oninput="setMusicVolume(this.value)"><span id="musicLabel">30%</span></div></div>
   <div class="settings-row"><label>UI Scale</label><div class="slider-wrap"><input type="range" id="uiScaleSlider" min="80" max="150" value="100" step="10" oninput="setUIScale(this.value)"><span id="uiScaleLabel">100%</span></div></div>
 </div>
 <div id="rightPanel">
@@ -471,10 +473,12 @@ function speakRandom(lines,type){
 
 function voiceSelect(u){
   if(u.owner!==player)return; // Don't voice enemy units
+  playSFXRandom('select-');
   const lines=VOICE_LINES.select[u.type];
   if(lines)speakRandom(lines,u.type);
 }
 function voiceCommand(u){
+  playSFXRandom('command-');
   const lines=VOICE_LINES.command[u.type];
   if(lines)speakRandom(lines,u.type);
 }
@@ -489,6 +493,108 @@ function voiceSystem(event,subtype){
 
 // Pre-load voices
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
+
+// ---- SFX SYSTEM ----
+let sfxManifest=null,sfxCache=new Map(),sfxVolume=0.5,sfxEnabled=true;
+(async function loadSFX(){
+  try{
+    const res=await fetch('audio/manifest.json');
+    if(!res.ok)return;
+    sfxManifest=await res.json();
+    // Preload all SFX (tiny files)
+    for(const [key,filename] of Object.entries(sfxManifest)){
+      if(key.startsWith('music-'))continue; // don't preload music tracks into sfxCache
+      const a=new Audio('audio/'+filename);
+      a.preload='auto';
+      sfxCache.set(key,a);
+    }
+  }catch(e){console.warn('SFX manifest not found, SFX disabled')}
+})();
+
+function playSFX(key){
+  if(!sfxEnabled||sfxVolume<=0)return;
+  const cached=sfxCache.get(key);
+  if(!cached)return;
+  const clone=cached.cloneNode();
+  clone.volume=sfxVolume;
+  clone.play().catch(()=>{});
+}
+function playSFXRandom(prefix){
+  const keys=[...sfxCache.keys()].filter(k=>k.startsWith(prefix));
+  if(keys.length)playSFX(keys[Math.floor(Math.random()*keys.length)]);
+}
+function setSFXVolume(val){
+  sfxVolume=val/100;
+  document.getElementById('sfxLabel').textContent=val+'%';
+}
+
+// ---- MUSIC SYSTEM ----
+let bgMusic=null,musicVolume=0.3,musicTrack='',musicUnmuted=false;
+function initMusic(){
+  bgMusic=new Audio();
+  bgMusic.loop=true;
+  bgMusic.volume=0; // start muted for autoplay policy
+  if(sfxManifest&&sfxManifest['music-title']){
+    bgMusic.src='audio/'+sfxManifest['music-title'];
+    bgMusic.play().catch(()=>{});
+  }
+}
+function switchMusic(track){
+  if(!bgMusic||!sfxManifest)return;
+  const key='music-'+track;
+  if(!sfxManifest[key]||musicTrack===track)return;
+  musicTrack=track;
+  // Crossfade: fade out then switch
+  const fadeOut=setInterval(()=>{
+    if(bgMusic.volume>0.02){bgMusic.volume=Math.max(0,bgMusic.volume-0.03)}
+    else{clearInterval(fadeOut);bgMusic.src='audio/'+sfxManifest[key];bgMusic.volume=musicUnmuted?musicVolume:0;bgMusic.play().catch(()=>{})}
+  },30);
+}
+function setMusicVolume(val){
+  musicVolume=val/100;
+  document.getElementById('musicLabel').textContent=val+'%';
+  if(bgMusic&&musicUnmuted)bgMusic.volume=musicVolume;
+}
+function unmuteMusic(){
+  if(musicUnmuted||!bgMusic)return;
+  musicUnmuted=true;
+  bgMusic.volume=musicVolume;
+  if(bgMusic.paused)bgMusic.play().catch(()=>{});
+}
+// Init music after a short delay to allow manifest to load
+setTimeout(()=>{if(sfxManifest)initMusic()},500);
+
+// ---- GLOBAL CLICK SFX INTERCEPTOR ----
+document.body.addEventListener('click',function(e){
+  const el=e.target.closest('button,input[type="checkbox"],.setup-opt,.menu-btn');
+  if(!el)return;
+  // Skip canvas and minimap clicks — handled separately
+  if(e.target.id==='gameCanvas'||e.target.id==='minimap')return;
+  if(e.target.closest('#gameCanvas,#minimap'))return;
+
+  // Disabled button → error sound
+  if(el.tagName==='BUTTON'&&el.disabled){
+    playSFXRandom('error-');
+    return;
+  }
+
+  // Build/hire/research buttons
+  if(el.closest('#buildingButtons')){playSFXRandom('build-');return}
+  if(el.closest('#unitButtons')){playSFXRandom('build-');return}
+  if(el.closest('#techButtons')){playSFXRandom('research-');return}
+
+  // Menu buttons (START, PLAY AGAIN, etc.)
+  if(el.classList.contains('menu-btn')){playSFXRandom('confirm-');return}
+
+  // Start solo/multiplayer buttons
+  if(el.id==='startSoloBtn'||el.id==='hostBtn'||el.id==='joinBtn'){playSFXRandom('confirm-');return}
+
+  // Setup options
+  if(el.classList.contains('setup-opt')){playSFXRandom('click-');return}
+
+  // Any other button
+  if(el.tagName==='BUTTON'||el.tagName==='INPUT'){playSFXRandom('click-');return}
+},true);
 
 // ---- M&A MECHANIC ----
 function isDistressed(p){
@@ -744,6 +850,7 @@ function showSetup(mode){
   document.getElementById('mpSettings').style.display=mode==='mp'?'block':'none';
   document.getElementById('startSoloBtn').style.display=mode==='ai'?'block':'none';
   document.getElementById('startSoloBtn').textContent=mode==='ai'?'⚔ START vs AI':'';
+  unmuteMusic();
 }
 function showMenu(){
   document.getElementById('mainMenu').style.display='block';
@@ -1014,6 +1121,7 @@ function genNickname(type,owner){
 
 // ---- INIT ----
 function startGame(isMultiplayer){
+  switchMusic('game');
   document.getElementById('titleScreen').style.display='none';
   document.getElementById('gameContainer').style.display='block';
   canvas=document.getElementById('gameCanvas');ctx=canvas.getContext('2d');
@@ -2354,6 +2462,7 @@ function updateBuildBtns(){const c=document.getElementById('buildingButtons');c.
   Object.entries(BLDGS).forEach(([k,b])=>{const has=!b.requires||player.buildings.some(p=>p.type===b.requires&&p.bp===undefined);const dup=player.buildings.some(p=>p.type===k)&&k!=='hq_upgrade';
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!has||dup||player.cash<b.cost;btn.innerHTML=`<span class="btn-icon">${b.icon}</span><span class="btn-info"><span class="btn-name">${b.name}</span><span class="btn-cost">$${b.cost}K</span></span>`;btn.onclick=()=>buildBldg(k);
+    if(btn.disabled){if(!has)btn.title='Requires '+((BLDGS[b.requires]||{}).name||b.requires);else if(dup)btn.title='Already built';else btn.title='Not enough cash ($'+b.cost+'K needed)'}else{btn.title=''}
     const ib=document.createElement('button');ib.className='info-btn';ib.textContent='i';ib.onclick=(e)=>{e.stopPropagation();showBldgInfo(k)};
     row.appendChild(btn);row.appendChild(ib);c.appendChild(row)})}
 function updateUnitBtns(){const c=document.getElementById('unitButtons');c.innerHTML='';
@@ -2362,6 +2471,7 @@ function updateUnitBtns(){const c=document.getElementById('unitButtons');c.inner
     const taMax=k==='talent_acq'&&player.taBuilt;
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!hB||!hT||player.cash<u.cost||atC||taMax;
+    if(btn.disabled){if(!hB)btn.title='Requires '+((BLDGS[u.requires]||{}).name||u.requires);else if(!hT)btn.title='Requires '+((TECHS[u.techReq]||{}).name||u.techReq)+' research';else if(player.cash<u.cost)btn.title='Not enough cash ($'+u.cost+'K needed)';else if(atC)btn.title='Office full — build more offices or HQ Upgrade';else if(taMax)btn.title='Maximum 1 Talent Acquisition'}else{btn.title=''}
     const countLabel=taMax?'<span style="color:#bb44ff;font-size:9px">MAX 1</span>':'<span style="color:#555">('+player.units.filter(x=>x.type===k).length+')</span>';
     btn.innerHTML=`<span class="btn-icon">${u.icon}</span><span class="btn-info"><span class="btn-name">${u.name} ${countLabel}</span><span class="btn-cost">$${u.cost}K · $${u.salary}K/mo</span></span>`;btn.onclick=()=>hireUnit(k);
     const ib=document.createElement('button');ib.className='info-btn';ib.textContent='i';ib.onclick=(e)=>{e.stopPropagation();showUnitInfo(k)};
@@ -2370,6 +2480,7 @@ function updateTechBtns(){const c=document.getElementById('techButtons');c.inner
   Object.entries(TECHS).forEach(([k,t])=>{const hB=!t.requires||player.buildings.some(p=>p.type===t.requires&&p.bp===undefined);const hT=!t.techReq||player.tech[t.techReq]===true;const done=player.tech[k]===true;const building=player.tech[k]==='building';
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!hB||!hT||player.cash<t.cost||done||building;
+    if(btn.disabled&&!done&&!building){if(!hB)btn.title='Requires '+((BLDGS[t.requires]||{}).name||t.requires);else if(!hT)btn.title='Requires '+((TECHS[t.techReq]||{}).name||t.techReq)+' research';else btn.title='Not enough cash ($'+t.cost+'K needed)'}else{btn.title=''}
     if(done)btn.style.borderColor='var(--green-dim)';
     if(building&&player.techBuild&&player.techBuild[k]){const tb=player.techBuild[k];const pct=Math.floor(tb.bp/tb.bt*100);btn.style.borderColor='var(--gold)';btn.innerHTML=`<span class="btn-icon">${t.icon}</span><span class="btn-info"><span class="btn-name">${t.name}</span><span class="btn-cost" style="color:var(--gold)">RESEARCHING ${pct}%</span></span>`}
     else{btn.innerHTML=`<span class="btn-icon">${t.icon}</span><span class="btn-info"><span class="btn-name">${t.name} ${done?'✓':''}</span><span class="btn-cost">${done?'DONE':'$'+t.cost+'K'}</span></span>`}
@@ -2561,6 +2672,7 @@ function showUnitInspector(u){
 function closeInfo(){document.getElementById('infoModal').classList.remove('open')}
 function endGame(won,reason){
   gameRunning=false;
+  switchMusic('title');
   document.getElementById('gameOver').style.display='flex';
   const titles={domination:won?'MARKET DOMINANCE':'OUTCOMPETED',mrr_race:won?'MRR CHAMPION':'MRR DEFEATED',mrr_timeout:won?'MRR LEADER':'MRR BEHIND',elimination:won?'COMPETITOR ELIMINATED':'BANKRUPT',conquest:won?'TOTAL CONQUEST':'TOTALLY CONQUERED',bankrupt:won?'COMPETITOR COLLAPSED':'BANKRUPT'};
   document.getElementById('goTitle').textContent=(won?'🏆 ':'💀 ')+(titles[reason||winCondition]||'GAME OVER');

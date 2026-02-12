@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npx serve public",
     "build": "echo 'Static site, no build needed'",
-    "generate-voices": "node scripts/generate-voices.js"
+    "generate-voices": "node scripts/generate-voices.js",
+    "generate-audio": "node scripts/generate-audio.js"
   }
 }

@@ -63,7 +63,7 @@ const ELEVEN_VOICES = {
   service_rep:  'ThT5KcBeYPX3keUQqHPh',
   ai_agent:     'VR6AewLTigWG4xSOukaG',
   talent_acq:   'pNInz6obpgDQGcFmaJgB',
-  system:       'ErXwobaYiN019PkySvjV',
+  system:       '21m00Tcm4TlvDq8ikWAM',
 };
 
 // ---- Collect all voice lines with deterministic filenames ----
