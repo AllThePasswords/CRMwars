@@ -551,28 +551,46 @@ function setSFXVolume(val){
 
 // ---- MUSIC SYSTEM ----
 let bgMusic=null,musicVolume=0.3,musicTrack='',musicUnmuted=false,musicReady=false;
+let musicFadeTimer=null; // active crossfade interval
 function initMusic(){
   if(musicReady)return;
   if(!sfxManifest||!sfxManifest['music-title'])return;
   musicReady=true;
   bgMusic=new Audio();
   bgMusic.loop=true;
-  bgMusic.volume=0; // start muted for autoplay policy
+  bgMusic.volume=0;
   bgMusic.src='audio/'+sfxManifest['music-title'];
   musicTrack='title';
   bgMusic.play().catch(()=>{});
 }
 function switchMusic(track){
-  initMusic(); // ensure music is initialized
-  if(!bgMusic||!sfxManifest)return;
+  initMusic();
+  if(!sfxManifest)return;
   const key='music-'+track;
   if(!sfxManifest[key]||musicTrack===track)return;
   musicTrack=track;
   const sel=document.getElementById('trackSelect');if(sel)sel.value=track;
-  // Crossfade: fade out then switch
-  const fadeOut=setInterval(()=>{
-    if(bgMusic.volume>0.02){bgMusic.volume=Math.max(0,bgMusic.volume-0.03)}
-    else{clearInterval(fadeOut);bgMusic.src='audio/'+sfxManifest[key];bgMusic.volume=musicUnmuted?musicVolume:0;bgMusic.play().catch(()=>{})}
+  if(musicFadeTimer)clearInterval(musicFadeTimer);
+  // True crossfade: new track fades in while old fades out simultaneously
+  const oldMusic=bgMusic;
+  const newMusic=new Audio();
+  newMusic.loop=true;
+  newMusic.volume=0;
+  newMusic.src='audio/'+sfxManifest[key];
+  newMusic.play().catch(()=>{});
+  bgMusic=newMusic;
+  const targetVol=musicUnmuted?musicVolume:0;
+  const steps=60; // 60 steps × 30ms = 1.8s crossfade
+  let step=0;
+  musicFadeTimer=setInterval(()=>{
+    step++;
+    const t=step/steps;
+    oldMusic.volume=Math.max(0,targetVol*(1-t));
+    newMusic.volume=Math.min(targetVol,targetVol*t);
+    if(step>=steps){
+      clearInterval(musicFadeTimer);musicFadeTimer=null;
+      oldMusic.pause();oldMusic.src='';
+    }
   },30);
 }
 function setMusicVolume(val){
@@ -581,7 +599,7 @@ function setMusicVolume(val){
   if(bgMusic&&musicUnmuted)bgMusic.volume=musicVolume;
 }
 function unmuteMusic(){
-  initMusic(); // ensure music is initialized
+  initMusic();
   if(!bgMusic)return;
   if(musicUnmuted)return;
   musicUnmuted=true;
