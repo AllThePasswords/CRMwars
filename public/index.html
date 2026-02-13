@@ -30,9 +30,14 @@ canvas#gameCanvas{display:block;width:100%;height:100%}
 #companyName{font-family:'Orbitron',sans-serif;font-weight:700;font-size:14px;color:var(--green);letter-spacing:2px;margin-right:auto}
 #gameSpeed{font-size:11px;color:#555;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:3px}
 #gameSpeed:hover{border-color:var(--green-dim);color:var(--green-dim)}
-#rightPanel{position:absolute;top:48px;right:0;bottom:40px;width:260px;background:rgba(18,19,31,0.92);border-left:1px solid var(--panel-border);z-index:10;backdrop-filter:blur(8px);display:flex;flex-direction:column;overflow-y:auto}
+#rightPanel{position:absolute;top:48px;right:0;bottom:40px;width:260px;background:rgba(18,19,31,0.92);border-left:1px solid var(--panel-border);z-index:10;backdrop-filter:blur(8px);display:flex;flex-direction:column;overflow:hidden}
 .panel-section{padding:12px;border-bottom:1px solid var(--panel-border)}
 .panel-title{font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;color:var(--green-dim);text-transform:uppercase;margin-bottom:8px}
+#panelTabs{display:flex;border-bottom:1px solid var(--panel-border);flex-shrink:0}
+.panel-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:#555;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:1px;padding:10px 4px;cursor:pointer;transition:all 0.15s;text-transform:uppercase}
+.panel-tab:hover{color:#999;background:rgba(255,255,255,0.02)}
+.panel-tab.active{color:var(--green);border-bottom-color:var(--green)}
+.panel-tab-content{flex:1;overflow-y:auto;min-height:0}
 .build-btn{display:flex;align-items:center;gap:8px;width:100%;background:rgba(255,255,255,0.03);border:1px solid #2a2a3a;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px 10px;margin-bottom:4px;cursor:pointer;transition:all 0.15s;text-align:left}
 .build-btn:hover:not(:disabled){background:rgba(0,255,65,0.05);border-color:var(--green-dim)}
 .build-btn:disabled{opacity:0.35;cursor:not-allowed}
@@ -43,8 +48,7 @@ canvas#gameCanvas{display:block;width:100%;height:100%}
 #bottomBar{position:absolute;bottom:0;left:0;right:0;height:40px;background:rgba(18,19,31,0.92);border-top:1px solid var(--panel-border);display:flex;align-items:center;padding:0 16px;z-index:10;font-size:11px;color:#555;backdrop-filter:blur(8px)}
 #eventLog{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #minimap{width:100%;background:rgba(10,10,18,0.9);border:1px solid var(--panel-border)}
-[data-tooltip]{position:relative}
-[data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(10,10,18,0.95);color:#c8c8d0;border:1px solid var(--green-dim);padding:4px 10px;font-size:10px;font-family:'Share Tech Mono',monospace;z-index:30;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:220px;white-space:normal;text-align:center;line-height:1.4}
+#jsTooltip{position:fixed;z-index:9999;pointer-events:none;background:rgba(10,10,18,0.95);color:#c8c8d0;border:1px solid var(--green-dim);padding:4px 10px;font-size:10px;font-family:'Share Tech Mono',monospace;box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:220px;white-space:normal;text-align:center;line-height:1.4;display:none}
 #trackSelect option{background:#12131f;color:var(--text)}
 #exitGameBtn:hover{background:rgba(255,51,51,0.18)!important;border-color:rgba(255,51,51,0.5)!important}
 #exitConfirm{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;flex-direction:column;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace}
@@ -220,6 +224,12 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
         <button class="setup-opt" data-val="conquest" onclick="pickOpt(this)">Conquest<span class="opt-sub">Own every customer</span></button>
       </div></div>
 
+    <div class="setup-row"><label class="setup-label">Team Composition</label>
+      <div class="setup-options" id="teamCompOptions">
+        <button class="setup-opt" data-val="pure_sales" onclick="pickOpt(this)">Pure Sales<span class="opt-sub">Sales reps only</span></button>
+        <button class="setup-opt active" data-val="full" onclick="pickOpt(this)">Full Team<span class="opt-sub">Sales, Marketing, Service & TA</span></button>
+      </div></div>
+
     <!-- AI-only settings -->
     <div id="aiSettings">
       <div class="setup-row"><label class="setup-label">Opponent Start</label>
@@ -292,13 +302,25 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
   </div>
 </div>
 <div id="rightPanel">
-  <div class="panel-section" style="padding:8px"><div class="panel-title">🗺 Map</div><canvas id="minimap" style="display:block;cursor:crosshair"></canvas></div>
-  <div class="panel-section"><div class="panel-title">🏗 Build</div><div id="buildingButtons"></div></div>
-  <div class="panel-section"><div class="panel-title">👤 Hire</div><div id="unitButtons"></div></div>
-  <div class="panel-section"><div class="panel-title">👥 Team <span id="teamCount" style="color:#555;font-size:10px"></span></div><div id="teamList"></div></div>
-  <div class="panel-section"><div class="panel-title">🔬 Research</div><div id="techButtons"></div></div>
-  <div class="panel-section"><div class="panel-title">📊 Intel</div><div id="marketIntel" style="font-size:11px;color:#666;line-height:1.7"></div></div>
+  <div class="panel-section" style="padding:8px"><canvas id="minimap" style="display:block;cursor:crosshair"></canvas></div>
+  <div id="panelTabs">
+    <button class="panel-tab active" data-tab="people" onclick="switchTab('people')">People</button>
+    <button class="panel-tab" data-tab="buildings" onclick="switchTab('buildings')">Buildings</button>
+    <button class="panel-tab" data-tab="research" onclick="switchTab('research')">Research</button>
+  </div>
+  <div class="panel-tab-content" id="tabPeople">
+    <div class="panel-section"><div class="panel-title">Hire</div><div id="unitButtons"></div></div>
+    <div class="panel-section"><div class="panel-title">Team <span id="teamCount" style="color:#555;font-size:10px"></span></div><div id="teamList"></div></div>
+  </div>
+  <div class="panel-tab-content" id="tabBuildings" style="display:none">
+    <div class="panel-section"><div id="buildingButtons"></div></div>
+  </div>
+  <div class="panel-tab-content" id="tabResearch" style="display:none">
+    <div class="panel-section"><div id="techButtons"></div></div>
+  </div>
+  <div class="panel-section"><div class="panel-title">Intel</div><div id="marketIntel" style="font-size:11px;color:#666;line-height:1.7"></div></div>
 </div>
+<div id="jsTooltip"></div>
 <div class="scroll-zone scroll-zone-top" data-dir="up"></div>
 <div class="scroll-zone scroll-zone-bottom" data-dir="down"></div>
 <div class="scroll-zone scroll-zone-left" data-dir="left"></div>
@@ -311,6 +333,27 @@ input[type="checkbox"]{accent-color:var(--green);width:16px;height:16px;cursor:p
 <div id="exitConfirm" onclick="if(event.target===this)cancelExit()"><div class="exit-box"></div></div>
 <div id="infoModal" onclick="if(event.target===this)closeInfo()"><div id="infoModalContent"></div></div>
 <script>
+// ---- SUPABASE STORAGE BRIDGE ----
+(function(){
+  const SB_URL='https://jlbgeqaqfszngmvzcuzz.supabase.co';
+  const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsYmdlcWFxZnN6bmdtdnpjdXp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2NTg1MjMsImV4cCI6MjA4NjIzNDUyM30.eKHqkDKh2UAdVWL0VFNtR_u0M1NVz7Rz3A3bF0jQlI4';
+  const hdrs={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
+  const rest=SB_URL+'/rest/v1/game_kv';
+  window.storage={
+    set:async function(key,value){
+      await fetch(rest,{method:'POST',headers:{...hdrs,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:key,value:value,ts:Date.now()})});
+    },
+    get:async function(key){
+      const r=await fetch(rest+'?key=eq.'+encodeURIComponent(key)+'&select=value,ts',{method:'GET',headers:{...hdrs,'Prefer':''}});
+      const rows=await r.json();
+      return rows.length>0?rows[0]:null;
+    },
+    remove:async function(key){
+      await fetch(rest+'?key=eq.'+encodeURIComponent(key),{method:'DELETE',headers:hdrs});
+    }
+  };
+})();
+
 // =============================================
 //  CRM WARS v4 — TERRITORY MAP (UK & Ireland)
 // =============================================
@@ -903,6 +946,40 @@ function mpApplyAction(a,fromPid){
   }
 }
 
+async function mpCleanup(){
+  try{
+    await window.storage.remove('crm-room:'+mpRoom);
+    for(let pid=0;pid<(players?players.length:4);pid++){
+      await window.storage.remove('crm-actions:'+mpRoom+':'+pid);
+      await window.storage.remove('crm-state:'+mpRoom+':'+pid);
+    }
+  }catch(e){}
+  mpMode=false;mpRoom=null;mpPid=0;mpActionQueue=[];mpLastSync={};
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.panel-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.getElementById('tabPeople').style.display=tab==='people'?'':'none';
+  document.getElementById('tabBuildings').style.display=tab==='buildings'?'':'none';
+  document.getElementById('tabResearch').style.display=tab==='research'?'':'none';
+}
+(function(){
+  const tip=document.getElementById('jsTooltip');
+  document.addEventListener('mouseover',function(e){
+    const el=e.target.closest('[data-tooltip]');
+    if(el){
+      tip.textContent=el.dataset.tooltip;
+      const r=el.getBoundingClientRect();
+      tip.style.display='block';
+      tip.style.top=(r.top+r.height/2-tip.offsetHeight/2)+'px';
+      tip.style.left=(r.left-tip.offsetWidth-8)+'px';
+    }
+  });
+  document.addEventListener('mouseout',function(e){
+    const el=e.target.closest('[data-tooltip]');
+    if(el)tip.style.display='none';
+  });
+})();
 function pickOpt(el){
   const row=el.parentElement;
   row.querySelectorAll('.setup-opt').forEach(b=>b.classList.remove('active'));
@@ -938,14 +1015,83 @@ function launchGame(){
   winCondition=getSetupVal('winCondOptions')||'domination';
   aiDifficulty=parseInt(document.getElementById('aiDiffSlider').value)||3;
   playerCount=getSetupVal('playerCountOptions')||2;
+  teamComp=getSetupVal('teamCompOptions')||'full';
   player.name=name;player.cash=setupCash;
   document.getElementById('companyName').textContent=name;
   startGame();
 }
 
+let teamComp='full';
+const TEAM_COMP_ALLOWED={
+  pure_sales:{
+    bldgs:['office','research_lab','hq_upgrade','ai_datacenter'],
+    units:['sales_rep','sr_sales_rep','ai_agent'],
+    techs:['basic_crm','advanced_sales','ai_first','enterprise']
+  },
+  full:{
+    bldgs:null, units:null, techs:null // null = all allowed
+  }
+};
+function isAllowedBldg(type){const a=TEAM_COMP_ALLOWED[teamComp];return !a.bldgs||a.bldgs.includes(type)}
+function isAllowedUnit(type){const a=TEAM_COMP_ALLOWED[teamComp];return !a.units||a.units.includes(type)}
+function isAllowedTech(type){const a=TEAM_COMP_ALLOWED[teamComp];return !a.techs||a.techs.includes(type)}
+
 const PLAYER_COLORS=['#00ff41','#ff3333','#3388ff','#ffcc00'];
 const PLAYER_RGBS=['0,255,65','255,51,51','51,136,255','255,204,0'];
 const HQ_CITIES=['Dublin','London','Edinburgh','Cork'];
+
+// ---- SPRITE SYSTEM ----
+const SPRITE_COLORS=['green','red','blue','yellow'];
+const BLDG_SPRITE_MAP={
+  office:'building-hq-t1',
+  marketing_dept:'building-marketing',
+  support_center:'building-cs-center',
+  research_lab:'building-rnd',
+  ai_datacenter:'building-datacenter'
+};
+const UNIT_SPRITE_MAP={
+  sales_rep:'unit-sales-rep',
+  sr_sales_rep:'unit-sr-sales-rep',
+  marketer:'unit-marketer',
+  service_rep:'unit-cs-rep',
+  ai_agent:'unit-ai-sdr'
+};
+const spriteCache={};
+function loadSprite(path){
+  if(spriteCache[path])return spriteCache[path];
+  const img=new Image();
+  img.src='sprites/'+path;
+  spriteCache[path]=img;
+  return img;
+}
+function getBldgSprite(type,ownerIdx){
+  const prefix=BLDG_SPRITE_MAP[type];
+  if(!prefix)return null;
+  const color=SPRITE_COLORS[ownerIdx]||'green';
+  return loadSprite('buildings/'+prefix+'-'+color+'.png');
+}
+function getHqSprite(ownerIdx,upgradeCount){
+  const tier=Math.min(4,1+upgradeCount);
+  const color=SPRITE_COLORS[ownerIdx]||'green';
+  return loadSprite('buildings/building-hq-t'+tier+'-'+color+'.png');
+}
+function getUnitSprite(type,ownerIdx){
+  const prefix=UNIT_SPRITE_MAP[type];
+  if(!prefix)return null;
+  const color=SPRITE_COLORS[ownerIdx]||'green';
+  return loadSprite('units/'+prefix+'-'+color+'.png');
+}
+function preloadAllSprites(){
+  SPRITE_COLORS.forEach(color=>{
+    Object.values(BLDG_SPRITE_MAP).forEach(prefix=>{loadSprite('buildings/'+prefix+'-'+color+'.png')});
+    for(let t=1;t<=4;t++){loadSprite('buildings/building-hq-t'+t+'-'+color+'.png')}
+    Object.values(UNIT_SPRITE_MAP).forEach(prefix=>{loadSprite('units/'+prefix+'-'+color+'.png')});
+  });
+}
+
+// ---- UX CONSTANTS ----
+const HQ_MIN_DIST=3;
+const UNIT_SEP=0.8;
 let players=[],localIdx=0,playerCount=2;
 let player={name:'STARTUP INC.',cash:500,mrr:0,arr:0,customers:[],units:[],buildings:[],tech:{},color:'#00ff41',hqCity:'Dublin',taBuilt:false,isAI:false,pid:0};
 let enemy={name:'MEGACRM CORP.',cash:800,mrr:120,arr:0,customers:[],units:[],buildings:[],tech:{basic_crm:true},color:'#ff3333',hqCity:'London',taBuilt:false,isAI:true,pid:1};
@@ -1039,6 +1185,69 @@ const UK_OUTLINE=[
   [-3.70,50.68],[-4.50,50.55],[-5.10,50.32],[-5.55,50.12],[-5.70,50.08]
 ].map(p=>geoToTile(p[0],p[1]));
 
+// ---- LAND / BUILDING PLACEMENT UTILITIES ----
+function isLand(x,y){
+  function pointInPoly(px,py,poly){
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+      if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+    }
+    return inside;
+  }
+  return pointInPoly(x,y,IRELAND_OUTLINE)||pointInPoly(x,y,UK_OUTLINE);
+}
+function findValidBuildingSpot(hqX,hqY,allBuildings){
+  for(let ring=1;ring<=8;ring++){
+    const step=ring*0.5;
+    for(let angle=0;angle<Math.PI*2;angle+=Math.PI/8){
+      const tx=hqX+Math.cos(angle)*step;
+      const ty=hqY+Math.sin(angle)*step;
+      if(!isLand(tx,ty))continue;
+      const tooClose=allBuildings.some(b=>Math.sqrt((b.x-tx)**2+(b.y-ty)**2)<1.0);
+      if(!tooClose)return{x:tx,y:ty};
+    }
+  }
+  return{x:hqX+(Math.random()-0.5)*3,y:hqY+(Math.random()-0.5)*3};
+}
+function tooCloseToAnyHQCity(x,y){
+  const hqNames=HQ_CITIES;
+  for(const name of hqNames){
+    const city=CITIES.find(c=>c.name===name);
+    if(city&&Math.sqrt((x-city.x)**2+(y-city.y)**2)<HQ_MIN_DIST)return true;
+  }
+  return false;
+}
+// ---- REP STEERING AROUND BUILDINGS ----
+function getSteerTarget(ux,uy,tx,ty){
+  const allBldgs=players.flatMap(p=>p.buildings);
+  const bRadius=0.7;
+  for(const b of allBldgs){
+    // Line-segment vs circle intersection
+    const dx=tx-ux,dy=ty-uy;
+    const fx=ux-b.x,fy=uy-b.y;
+    const a2=dx*dx+dy*dy;
+    if(a2<0.001)continue;
+    const b2=2*(fx*dx+fy*dy);
+    const c2=fx*fx+fy*fy-bRadius*bRadius;
+    let disc=b2*b2-4*a2*c2;
+    if(disc<0)continue;
+    disc=Math.sqrt(disc);
+    const t1=(-b2-disc)/(2*a2);
+    const t2=(-b2+disc)/(2*a2);
+    if(t1>0.05&&t1<0.95||t2>0.05&&t2<0.95){
+      // Path intersects this building — steer perpendicular
+      const perpX=-(ty-uy),perpY=(tx-ux);
+      const pLen=Math.sqrt(perpX*perpX+perpY*perpY);
+      if(pLen<0.01)continue;
+      const wpX=b.x+perpX/pLen*(bRadius+0.5);
+      const wpY=b.y+perpY/pLen*(bRadius+0.5);
+      return{x:wpX,y:wpY};
+    }
+  }
+  return null;
+}
+
 const BLDGS={
   office:{name:'Sales Office',icon:'🏢',cost:100,desc:'Hire sales reps (cap +5)',capacity:5,buildTime:8},
   marketing_dept:{name:'Marketing Dept',icon:'📢',cost:200,desc:'Hire marketers',requires:'office',buildTime:12},
@@ -1060,7 +1269,7 @@ const UNITS_DEF={
 const TECHS={
   basic_crm:{name:'Basic CRM',icon:'💾',cost:80,desc:'+20% close rate',requires:'research_lab',buildTime:10},
   advanced_sales:{name:'Advanced Sales',icon:'📊',cost:150,desc:'Unlock Sr. Reps',requires:'research_lab',techReq:'basic_crm',buildTime:15},
-  marketing_automation:{name:'Marketing Auto',icon:'⚡',cost:180,desc:'Marketers 2x range',requires:'research_lab',techReq:'basic_crm',buildTime:15},
+  marketing_automation:{name:'Marketing Auto',icon:'⚡',cost:180,desc:'Doubles marketer sabotage rate',requires:'research_lab',techReq:'basic_crm',buildTime:15},
   customer_success:{name:'Cust. Success',icon:'⭐',cost:200,desc:'CS Rep 2x defense range',requires:'support_center',techReq:'basic_crm',buildTime:15},
   ai_first:{name:'AI-First Platform',icon:'🧠',cost:400,desc:'Unlock AI SDR',requires:'ai_datacenter',techReq:'advanced_sales',buildTime:25},
   enterprise:{name:'Enterprise Ed.',icon:'🏢',cost:300,desc:'Accounts 2x MRR',requires:'research_lab',techReq:'advanced_sales',buildTime:20}
@@ -1129,10 +1338,14 @@ function generateCustomers(){
   CITIES.forEach(city=>{
     const count=Math.max(1,Math.round(city.customers*setupMarket));
     for(let i=0;i<count;i++){
-      const angle=rng()*Math.PI*2;
-      const dist=rng()*city.size*1.5;
-      const x=city.x+Math.cos(angle)*dist;
-      const y=city.y+Math.sin(angle)*dist;
+      let x,y,attempts=0;
+      do{
+        const angle=rng()*Math.PI*2;
+        const dist=rng()*city.size*1.5;
+        x=city.x+Math.cos(angle)*dist;
+        y=city.y+Math.sin(angle)*dist;
+        attempts++;
+      }while(tooCloseToAnyHQCity(x,y)&&attempts<20);
       const c={id:allCust.length,x,y,px:x,py:y,value:1+Math.floor(rng()*12),owner:null,loyalty:0,
         size:0.5+rng()*0.8,pp:rng()*Math.PI*2,city:city.name};
       allCust.push(c);freeCust.push(c);
@@ -1190,6 +1403,7 @@ function genNickname(type,owner){
 function startGame(isMultiplayer){
   battleMusicTriggered=false;
   switchMusic('game');
+  preloadAllSprites();
   document.getElementById('titleScreen').style.display='none';
   document.getElementById('gameContainer').style.display='block';
   document.getElementById('exitGameBtn').style.display='block';
@@ -1234,16 +1448,20 @@ function startGame(isMultiplayer){
           aiP.units.push(createUnit('sales_rep',aiP,hqCity.x+(Math.random()-0.5)*1.5,hqCity.y+(Math.random()-0.5)*1.5));
         }
       } else if(oppStart==='slight'){
-        aiP.buildings.push({type:'marketing_dept',x:hqCity.x-1,y:hqCity.y});
+        const sp1=findValidBuildingSpot(hqCity.x,hqCity.y,aiP.buildings);
+        aiP.buildings.push({type:'marketing_dept',x:sp1.x,y:sp1.y});
         aiP.cash=Math.round(setupCash*1.5);
         const enemyReps=Math.max(setupReps+1,Math.round(3*setupMarket));
         for(let i=0;i<enemyReps;i++){
           aiP.units.push(createUnit('sales_rep',aiP,hqCity.x+(Math.random()-0.5)*1.5,hqCity.y+(Math.random()-0.5)*1.5));
         }
       } else {
-        aiP.buildings.push({type:'marketing_dept',x:hqCity.x-1,y:hqCity.y});
-        aiP.buildings.push({type:'research_lab',x:hqCity.x+1,y:hqCity.y+1});
-        aiP.buildings.push({type:'support_center',x:hqCity.x-1,y:hqCity.y+1});
+        const sp1=findValidBuildingSpot(hqCity.x,hqCity.y,aiP.buildings);
+        aiP.buildings.push({type:'marketing_dept',x:sp1.x,y:sp1.y});
+        const sp2=findValidBuildingSpot(hqCity.x,hqCity.y,aiP.buildings);
+        aiP.buildings.push({type:'research_lab',x:sp2.x,y:sp2.y});
+        const sp3=findValidBuildingSpot(hqCity.x,hqCity.y,aiP.buildings);
+        aiP.buildings.push({type:'support_center',x:sp3.x,y:sp3.y});
         aiP.cash=Math.round(setupCash*2.5);
         aiP.tech.basic_crm=true;
         const enemyReps=Math.max(4,Math.round(5*setupMarket));
@@ -1261,6 +1479,18 @@ function startGame(isMultiplayer){
       if(rpCity){rp.buildings.push({type:'office',x:rpCity.x,y:rpCity.y});rp.cash=setupCash}
     });
   }
+
+  // Push customers away from HQ cities
+  allCust.forEach(c=>{
+    HQ_CITIES.forEach(name=>{
+      const city=CITIES.find(ct=>ct.name===name);
+      if(!city)return;
+      const dx=c.x-city.x,dy=c.y-city.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<HQ_MIN_DIST&&d>0.01){
+        c.x=city.x+dx/d*HQ_MIN_DIST;c.y=city.y+dy/d*HQ_MIN_DIST;c.px=c.x;c.py=c.y;
+      }
+    });
+  });
 
   const iso=toIso(myCity.x,myCity.y);camX=iso.x-window.innerWidth/2;camY=iso.y-window.innerHeight/2;
   setupInput();updateUI();gameRunning=true;
@@ -1375,7 +1605,7 @@ function cmdMulti(units,wx,wy){
   let hit=null;for(const c of allCust){const i=toIso(c.x,c.y);if(Math.abs(wx-i.x)<14&&Math.abs(wy-i.y)<14){hit=c;break}}
   let n=0;
   units.forEach((u,idx)=>{
-    if(hit){u.target=hit;u.tx=hit.x+(Math.random()-0.5)*1.5;u.ty=hit.y+(Math.random()-0.5)*1.5;u.state='moving';n++}
+    if(hit){u.target=hit;u.tx=hit.x+(Math.random()-0.5)*2.5;u.ty=hit.y+(Math.random()-0.5)*2.5;u.state='moving';n++}
     else{const t=fromIso(wx,wy);u.tx=Math.max(0,Math.min(MAP-1,t.x+(Math.random()-0.5)*2));u.ty=Math.max(0,Math.min(MAP-1,t.y+(Math.random()-0.5)*2));u.target=null;u.state='moving';n++}
   });
   if(hit){addLog(n+' reps → '+hit.city+' #'+hit.id,'neutral');addWaypoint(hit.x,hit.y,hit,n)}
@@ -1409,6 +1639,19 @@ function gameTick(){
   });
   if(gameTime%5===0)players.forEach(p=>{const sal=p.units.filter(u=>u.state!=='building').reduce((s,u)=>s+u.salary,0);p.cash-=sal;p.arr=p.customers.reduce((s,c)=>s+c.value*(p.tech.enterprise===true?2:1),0);p.cash+=p.arr});
   players.flatMap(p=>p.units).forEach(actUnit);
+  // Unit separation force — prevent overlap
+  const allUnits=players.flatMap(p=>p.units).filter(u=>u.state!=='building'&&u.state!=='converting'&&u.state!=='sabotaging');
+  for(let i=0;i<allUnits.length;i++){
+    for(let j=i+1;j<allUnits.length;j++){
+      const a=allUnits[i],b2=allUnits[j];
+      const dx=b2.x-a.x,dy=b2.y-a.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<UNIT_SEP&&d>0.01){
+        const push=0.05;const nx=dx/d,ny=dy/d;
+        a.x-=nx*push;a.y-=ny*push;
+        b2.x+=nx*push;b2.y+=ny*push;
+      }
+    }
+  }
   // Loyalty decay — owned customers slowly lose loyalty without CS rep nearby
   allCust.forEach(c=>{
     if(c.owner){
@@ -1435,8 +1678,11 @@ function gameTick(){
       const nearbyMarketers=allMarketers.filter(m=>Math.sqrt((m.x-city.x)**2+(m.y-city.y)**2)<city.size*2).length;
       const chance=Math.min(0.9,baseChance+nearbyMarketers*0.15);
       if(Math.random()<chance){
-        const angle=Math.random()*Math.PI*2,dist=Math.random()*city.size*1.5;
-        const x=city.x+Math.cos(angle)*dist,y=city.y+Math.sin(angle)*dist;
+        let x,y,att=0;
+        do{
+          const angle=Math.random()*Math.PI*2,dist=Math.random()*city.size*1.5;
+          x=city.x+Math.cos(angle)*dist;y=city.y+Math.sin(angle)*dist;att++;
+        }while(tooCloseToAnyHQCity(x,y)&&att<20);
         const c={id:allCust.length,x,y,px:x,py:y,value:1+Math.floor(Math.random()*12),owner:null,loyalty:0,
           size:0.5+Math.random()*0.8,pp:Math.random()*Math.PI*2,city:city.name};
         allCust.push(c);freeCust.push(c);TOTAL_CUST=allCust.length;
@@ -1589,7 +1835,7 @@ function actUnit(u){
       if(d<0.5){
         if(u.recruitTarget){u.state='recruiting';u.recruitProgress=0}
         else{u.state='idle'}
-      } else {const s=u.speed*0.25;u.x+=dx/d*s;u.y+=dy/d*s}
+      } else {const s=u.speed*0.25;const wp=getSteerTarget(u.x,u.y,u.tx,u.ty);if(wp){const wdx=wp.x-u.x,wdy=wp.y-u.y,wd=Math.sqrt(wdx*wdx+wdy*wdy);if(wd>0.1){u.x+=wdx/wd*s;u.y+=wdy/wd*s}else{u.x+=dx/d*s;u.y+=dy/d*s}}else{u.x+=dx/d*s;u.y+=dy/d*s}}
       return;
     }
 
@@ -1611,9 +1857,6 @@ function actUnit(u){
   }
 
   if(u.type==='marketer'){
-    const mktRange=u.owner.tech.marketing_automation?10:5;
-    // Magnetic pull — attract free prospects toward marketer
-    freeCust.forEach(c=>{const dx=u.x-c.x,dy=u.y-c.y,d=Math.sqrt(dx*dx+dy*dy);if(d<mktRange&&d>0.5){c.x+=dx/d*0.03;c.y+=dy/d*0.03}});
     // Loyalty sabotage — drain loyalty from nearby enemy customers
     const opp=players.find(p=>p!==u.owner)||enemy;
     if(u.state==='sabotaging'&&u.target){
@@ -1653,7 +1896,7 @@ function actUnit(u){
   // MOVEMENT — faster base speed (0.25 per tick, was 0.15)
   if(u.state==='moving'){const dx=u.tx-u.x,dy=u.ty-u.y,d=Math.sqrt(dx*dx+dy*dy);
     if(d<0.3){u.state=u.target?(u.type==='marketer'?'sabotaging':'converting'):'idle';u.progress=0}
-    else{const s=u.speed*0.25;u.x+=dx/d*s;u.y+=dy/d*s}}
+    else{const s=u.speed*0.25;const wp=getSteerTarget(u.x,u.y,u.tx,u.ty);if(wp){const wdx=wp.x-u.x,wdy=wp.y-u.y,wd=Math.sqrt(wdx*wdx+wdy*wdy);if(wd>0.1){u.x+=wdx/wd*s;u.y+=wdy/wd*s}else{u.x+=dx/d*s;u.y+=dy/d*s}}else{u.x+=dx/d*s;u.y+=dy/d*s}}}
   if((u.state==='converting'||u.state==='blocked')&&u.target){const c=u.target,tb=u.owner.tech.basic_crm===true?1.2:1,pw=u.power*tb;
     // Value-based close speed: small deals close fast, large deals are a grind
     const vf=c.value<=3?1.67:c.value<=7?1:0.67;
@@ -1707,15 +1950,15 @@ function aiTick(aiP){
     if(d>=4){
       const hasService=aiP.units.some(u=>u.type==='service_rep');
       const hasMarketer=aiP.units.some(u=>u.type==='marketer');
-      if(aiP.tech.ai_first===true&&Math.random()<0.4)t='ai_agent';
-      else if(aiP.tech.advanced_sales===true&&Math.random()<0.35)t='sr_sales_rep';
-      else if(!hasService&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)&&Math.random()<0.3)t='service_rep';
-      else if(!hasMarketer&&aiP.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined)&&Math.random()<0.25)t='marketer';
+      if(isAllowedUnit('ai_agent')&&aiP.tech.ai_first===true&&Math.random()<0.4)t='ai_agent';
+      else if(isAllowedUnit('sr_sales_rep')&&aiP.tech.advanced_sales===true&&Math.random()<0.35)t='sr_sales_rep';
+      else if(isAllowedUnit('service_rep')&&!hasService&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)&&Math.random()<0.3)t='service_rep';
+      else if(isAllowedUnit('marketer')&&!hasMarketer&&aiP.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined)&&Math.random()<0.25)t='marketer';
     } else {
-      if(aiP.tech.ai_first===true&&Math.random()<0.2)t='ai_agent';
-      else if(aiP.tech.advanced_sales===true&&Math.random()<0.2)t='sr_sales_rep';
-      else if(Math.random()<0.15&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined))t='service_rep';
-      else if(Math.random()<0.1&&aiP.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined))t='marketer';
+      if(isAllowedUnit('ai_agent')&&aiP.tech.ai_first===true&&Math.random()<0.2)t='ai_agent';
+      else if(isAllowedUnit('sr_sales_rep')&&aiP.tech.advanced_sales===true&&Math.random()<0.2)t='sr_sales_rep';
+      else if(isAllowedUnit('service_rep')&&Math.random()<0.15&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined))t='service_rep';
+      else if(isAllowedUnit('marketer')&&Math.random()<0.1&&aiP.buildings.some(x=>x.type==='marketing_dept'&&x.bp===undefined))t='marketer';
     }
     if(aiP.cash>=UNITS_DEF[t].cost){aiP.cash-=UNITS_DEF[t].cost;
       const u=createUnit(t,aiP,b.x+(Math.random()-0.5)*3,b.y+(Math.random()-0.5)*3);
@@ -1727,31 +1970,32 @@ function aiTick(aiP){
     const has=type=>aiP.buildings.some(x=>x.type===type);
     let toBuild=null;
     if(d>=4){
-      if(!has('research_lab'))toBuild='research_lab';
-      else if(!has('marketing_dept'))toBuild='marketing_dept';
-      else if(!has('support_center'))toBuild='support_center';
-      else if(!has('ai_datacenter')&&aiP.tech.advanced_sales===true)toBuild='ai_datacenter';
-      else if(!has('hq_upgrade')&&has('research_lab'))toBuild='hq_upgrade';
+      if(isAllowedBldg('research_lab')&&!has('research_lab'))toBuild='research_lab';
+      else if(isAllowedBldg('marketing_dept')&&!has('marketing_dept'))toBuild='marketing_dept';
+      else if(isAllowedBldg('support_center')&&!has('support_center'))toBuild='support_center';
+      else if(isAllowedBldg('ai_datacenter')&&!has('ai_datacenter')&&aiP.tech.advanced_sales===true)toBuild='ai_datacenter';
+      else if(isAllowedBldg('hq_upgrade')&&!has('hq_upgrade')&&has('research_lab'))toBuild='hq_upgrade';
     } else {
-      if(!has('research_lab')&&Math.random()<0.5)toBuild='research_lab';
-      else if(!has('support_center')&&Math.random()<0.4)toBuild='support_center';
-      else if(!has('marketing_dept')&&Math.random()<0.3)toBuild='marketing_dept';
-      else if(!has('ai_datacenter')&&aiP.tech.advanced_sales===true&&Math.random()<0.2)toBuild='ai_datacenter';
+      if(isAllowedBldg('research_lab')&&!has('research_lab')&&Math.random()<0.5)toBuild='research_lab';
+      else if(isAllowedBldg('support_center')&&!has('support_center')&&Math.random()<0.4)toBuild='support_center';
+      else if(isAllowedBldg('marketing_dept')&&!has('marketing_dept')&&Math.random()<0.3)toBuild='marketing_dept';
+      else if(isAllowedBldg('ai_datacenter')&&!has('ai_datacenter')&&aiP.tech.advanced_sales===true&&Math.random()<0.2)toBuild='ai_datacenter';
     }
     if(toBuild&&aiP.cash>=BLDGS[toBuild].cost){aiP.cash-=BLDGS[toBuild].cost;
-      aiP.buildings.push({type:toBuild,x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS[toBuild].buildTime})}
+      const sp=findValidBuildingSpot(b.x,b.y,aiP.buildings);
+      aiP.buildings.push({type:toBuild,x:sp.x,y:sp.y,bp:0,bt:BLDGS[toBuild].buildTime})}
   }
 
   // RESEARCH
   if(aiP.cash>cashThreshold&&Math.random()<techChance){
     const hasLab=aiP.buildings.some(x=>x.type==='research_lab'&&x.bp===undefined);
     if(hasLab){
-      if(aiP.tech.basic_crm!==true){aiP.tech.basic_crm='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.basic_crm={bp:0,bt:TECHS.basic_crm.buildTime}}
-      else if(aiP.tech.advanced_sales!==true&&d>=3){aiP.tech.advanced_sales='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.advanced_sales={bp:0,bt:TECHS.advanced_sales.buildTime}}
-      else if(aiP.tech.customer_success!==true&&d>=3&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)){aiP.tech.customer_success='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.customer_success={bp:0,bt:TECHS.customer_success.buildTime}}
-      else if(aiP.tech.ai_first!==true&&aiP.tech.advanced_sales===true&&d>=4&&aiP.buildings.some(x=>x.type==='ai_datacenter'&&x.bp===undefined)){aiP.tech.ai_first='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.ai_first={bp:0,bt:TECHS.ai_first.buildTime}}
-      else if(aiP.tech.enterprise!==true&&aiP.tech.advanced_sales===true&&d>=3){aiP.tech.enterprise='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.enterprise={bp:0,bt:TECHS.enterprise.buildTime}}
-      else if(aiP.tech.marketing_automation!==true&&aiP.tech.basic_crm===true&&d>=4){aiP.tech.marketing_automation='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.marketing_automation={bp:0,bt:TECHS.marketing_automation.buildTime}}
+      if(isAllowedTech('basic_crm')&&aiP.tech.basic_crm!==true){aiP.tech.basic_crm='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.basic_crm={bp:0,bt:TECHS.basic_crm.buildTime}}
+      else if(isAllowedTech('advanced_sales')&&aiP.tech.advanced_sales!==true&&d>=3){aiP.tech.advanced_sales='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.advanced_sales={bp:0,bt:TECHS.advanced_sales.buildTime}}
+      else if(isAllowedTech('customer_success')&&aiP.tech.customer_success!==true&&d>=3&&aiP.buildings.some(x=>x.type==='support_center'&&x.bp===undefined)){aiP.tech.customer_success='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.customer_success={bp:0,bt:TECHS.customer_success.buildTime}}
+      else if(isAllowedTech('ai_first')&&aiP.tech.ai_first!==true&&aiP.tech.advanced_sales===true&&d>=4&&aiP.buildings.some(x=>x.type==='ai_datacenter'&&x.bp===undefined)){aiP.tech.ai_first='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.ai_first={bp:0,bt:TECHS.ai_first.buildTime}}
+      else if(isAllowedTech('enterprise')&&aiP.tech.enterprise!==true&&aiP.tech.advanced_sales===true&&d>=3){aiP.tech.enterprise='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.enterprise={bp:0,bt:TECHS.enterprise.buildTime}}
+      else if(isAllowedTech('marketing_automation')&&aiP.tech.marketing_automation!==true&&aiP.tech.basic_crm===true&&d>=4){aiP.tech.marketing_automation='building';aiP.techBuild=aiP.techBuild||{};aiP.techBuild.marketing_automation={bp:0,bt:TECHS.marketing_automation.buildTime}}
     }
   }
 
@@ -1777,7 +2021,8 @@ function aiTick(aiP){
   if(d>=3&&!hasHRBuilding&&aiP.cash>cashThreshold&&Math.random()<buildChance*1.5){
     if(aiP.buildings.some(x=>x.type==='office'&&x.bp===undefined)&&aiP.cash>=BLDGS.hr_dept.cost){
       aiP.cash-=BLDGS.hr_dept.cost;
-      aiP.buildings.push({type:'hr_dept',x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS.hr_dept.buildTime});
+      const spHR=findValidBuildingSpot(b.x,b.y,aiP.buildings);
+      aiP.buildings.push({type:'hr_dept',x:spHR.x,y:spHR.y,bp:0,bt:BLDGS.hr_dept.buildTime});
     }
   }
 
@@ -1803,7 +2048,8 @@ function aiTick(aiP){
   // ---- AI M&A BEHAVIOR ----
   if(d>=4&&!aiP.buildings.some(x=>x.type==='m_and_a_dept')&&aiP.buildings.some(x=>x.type==='research_lab'&&x.bp===undefined)&&aiP.cash>=BLDGS.m_and_a_dept.cost&&Math.random()<buildChance){
     aiP.cash-=BLDGS.m_and_a_dept.cost;
-    aiP.buildings.push({type:'m_and_a_dept',x:b.x+(Math.random()-0.5)*2,y:b.y+(Math.random()-0.5)*2,bp:0,bt:BLDGS.m_and_a_dept.buildTime});
+    const spMA=findValidBuildingSpot(b.x,b.y,aiP.buildings);
+    aiP.buildings.push({type:'m_and_a_dept',x:spMA.x,y:spMA.y,bp:0,bt:BLDGS.m_and_a_dept.buildTime});
   }
   const aiHasMA=aiP.buildings.some(x=>x.type==='m_and_a_dept'&&x.bp===undefined);
   if(aiHasMA&&isDistressed(player)&&aiAcqCountdown===0){
@@ -1886,12 +2132,22 @@ function render(dt,lerp){
     return toIso(lx,ly);
   }
 
+  // Build customer→rep map for hero deal bars
+  const custRepMap=new Map();
+  players.flatMap(p=>p.units).forEach(u=>{
+    if((u.state==='converting'||u.state==='blocked')&&u.target){
+      const lpu=u.pProgress!==undefined?u.pProgress+(u.progress-u.pProgress)*lerp:u.progress;
+      if(!custRepMap.has(u.target))custRepMap.set(u.target,[]);
+      custRepMap.get(u.target).push({unit:u,progress:lpu});
+    }
+  });
+
   const rr=[];
   allCust.forEach(c=>{const i=lerpPos(c);rr.push({t:'c',d:c,y:(c.px||c.x)+(c.py||c.y)+lerp*2,i})});
   players.forEach(p=>{p.buildings.forEach(b=>{const i=toIso(b.x,b.y);rr.push({t:'b',d:b,o:p,y:b.x+b.y,i})})});
   players.flatMap(p=>p.units).forEach(u=>{const i=lerpPos(u);const la=u.pAnim!==undefined?u.pAnim+(u.anim-u.pAnim)*lerp:u.anim;const lp=u.pProgress!==undefined?u.pProgress+(u.progress-u.pProgress)*lerp:u.progress;rr.push({t:'u',d:u,y:(u.px||u.x)+(u.py||u.y)+lerp*2,i,la,lp})});
   rr.sort((a,b)=>a.y-b.y);
-  rr.forEach(r=>{if(r.t==='c')drawCust(r.d,r.i);else if(r.t==='b')drawBase(r.d,r.o,r.i);else drawUnit(r.d,r.i,r.la,r.lp,lerpPos)});
+  rr.forEach(r=>{if(r.t==='c')drawCust(r.d,r.i,custRepMap);else if(r.t==='b')drawBase(r.d,r.o,r.i);else drawUnit(r.d,r.i,r.la,r.lp,lerpPos,custRepMap)});
 
   particles.forEach(p=>{const i=toIso(p.x,p.y);const a=p.life/p.mx;ctx.globalAlpha=a;ctx.fillStyle=p.col;ctx.font='bold '+(p.sz||12)+'px Orbitron,sans-serif';ctx.textAlign='center';ctx.fillText(p.ch,i.x,i.y-(1-a)*30);p.x+=p.vx;p.y+=p.vy;p.life--});
   ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);
@@ -1934,18 +2190,34 @@ function render(dt,lerp){
   });
   waypoints=waypoints.filter(wp=>wp.alpha>0);
 
-  if(selectedUnit){const sx=selectedUnit.px+(selectedUnit.x-selectedUnit.px)*lerp,sy=selectedUnit.py+(selectedUnit.y-selectedUnit.py)*lerp;const i=toIso(sx,sy);ctx.strokeStyle='#00ff41';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(i.x,i.y+4,16,8,0,0,Math.PI*2);ctx.stroke();const g=ctx.createRadialGradient(i.x,i.y,0,i.x,i.y,24);g.addColorStop(0,'rgba(0,255,65,0.2)');g.addColorStop(1,'rgba(0,255,65,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(i.x,i.y,24,0,Math.PI*2);ctx.fill();
+  if(selectedUnit){const sx=selectedUnit.px+(selectedUnit.x-selectedUnit.px)*lerp,sy=selectedUnit.py+(selectedUnit.y-selectedUnit.py)*lerp;const i=toIso(sx,sy);
+    // Dashed white square frame
+    ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.strokeRect(i.x-18,i.y-22,36,30);ctx.setLineDash([]);
     drawUnitDestination(selectedUnit,i,lerp)}
-  // Inspected unit (enemy or own) — red/green pulsing ring
+  // Inspected unit (enemy or own) — dashed colored square
   if(inspectedUnit){const sx=inspectedUnit.px+(inspectedUnit.x-inspectedUnit.px)*lerp,sy=inspectedUnit.py+(inspectedUnit.y-inspectedUnit.py)*lerp;const i=toIso(sx,sy);
-    const isP=inspectedUnit.owner===player;const col=isP?'#00ff41':'#ff3333';const rgb=isP?'0,255,65':'255,51,51';
-    const pulse=Math.sin(performance.now()*0.004)*0.3+0.7;
-    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.globalAlpha=pulse;ctx.beginPath();ctx.ellipse(i.x,i.y+4,18,9,0,0,Math.PI*2);ctx.stroke();
-    ctx.globalAlpha=1;const g=ctx.createRadialGradient(i.x,i.y,0,i.x,i.y,28);g.addColorStop(0,`rgba(${rgb},0.15)`);g.addColorStop(1,`rgba(${rgb},0)`);ctx.fillStyle=g;ctx.beginPath();ctx.arc(i.x,i.y,28,0,Math.PI*2);ctx.fill();
+    const isP=inspectedUnit.owner===player;const col=isP?'rgba(0,255,65,0.45)':'rgba(255,51,51,0.45)';
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+    ctx.strokeRect(i.x-20,i.y-24,40,34);ctx.setLineDash([]);
   }
-  // Multi-select highlights + destinations
-  selectedUnits.forEach(u=>{const sx=u.px+(u.x-u.px)*lerp,sy=u.py+(u.y-u.py)*lerp;const i=toIso(sx,sy);ctx.strokeStyle='#00ff41';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(i.x,i.y+4,14,7,0,0,Math.PI*2);ctx.stroke();
-    drawUnitDestination(u,i,lerp)});
+  // Multi-select highlights + destinations — wider grouped frame
+  if(selectedUnits.length>0){
+    // Draw individual dashed frames
+    selectedUnits.forEach(u=>{const sx=u.px+(u.x-u.px)*lerp,sy=u.py+(u.y-u.py)*lerp;const i=toIso(sx,sy);
+      ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      ctx.strokeRect(i.x-18,i.y-22,36,30);ctx.setLineDash([]);
+      drawUnitDestination(u,i,lerp)});
+    // Compute bounding box for grouped frame
+    const isos=selectedUnits.map(u=>{const sx=u.px+(u.x-u.px)*lerp,sy=u.py+(u.y-u.py)*lerp;return toIso(sx,sy)});
+    const gx1=Math.min(...isos.map(i=>i.x))-24,gy1=Math.min(...isos.map(i=>i.y))-28;
+    const gx2=Math.max(...isos.map(i=>i.x))+24,gy2=Math.max(...isos.map(i=>i.y))+14;
+    ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.setLineDash([5,4]);
+    ctx.strokeRect(gx1,gy1,gx2-gx1,gy2-gy1);ctx.setLineDash([]);
+    // Subtle count label top-right of group box
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='7px Share Tech Mono';ctx.textAlign='right';
+    ctx.fillText(selectedUnits.length+' selected',gx2-2,gy1-2);
+  }
   ctx.restore();
   // Box-select rectangle (screen space)
   if(boxSelecting){
@@ -2015,13 +2287,13 @@ function render(dt,lerp){
   drawMinimap();
 }
 
-function drawCust(c,iso){
-  const targeted=players.flatMap(p=>p.units).some(u=>u.target===c&&u.state==='converting');
+function drawCust(c,iso,custRepMap){
+  const reps=custRepMap&&custRepMap.has(c)?custRepMap.get(c):[];
+  const targeted=reps.length>0||players.flatMap(p=>p.units).some(u=>u.target===c&&u.state==='converting');
   let col,glow;
   if(!c.owner){col=targeted?'rgba(255,220,100,0.7)':'rgba(100,110,130,0.6)';glow=targeted?'#ffdd66':'#666'}
   else{
     const oc=c.owner.color||'#888';
-    // Parse hex to rgba
     const hr=parseInt(oc.slice(1,3),16),hg=parseInt(oc.slice(3,5),16),hb=parseInt(oc.slice(5,7),16);
     col=`rgba(${hr},${hg},${hb},0.6)`;glow=oc;
   }
@@ -2033,10 +2305,43 @@ function drawCust(c,iso){
   ctx.fillStyle=col;ctx.strokeStyle=glow;ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(iso.x,iso.y-sz);ctx.lineTo(iso.x+sz,iso.y);ctx.lineTo(iso.x,iso.y+sz*0.6);ctx.lineTo(iso.x-sz,iso.y);ctx.closePath();ctx.fill();ctx.stroke();
 
-  // Value
-  ctx.font='bold 7px Orbitron';ctx.textAlign='center';
-  ctx.fillStyle=c.owner?(c.owner===player?'rgba(0,255,65,0.8)':'rgba(255,150,150,0.7)'):'#555';
-  ctx.fillText('$'+c.value+'K',iso.x,iso.y-sz-4);
+  // Merged value + deal progress pill OR plain value label
+  if(reps.length>0){
+    const maxProg=Math.max(...reps.map(r=>r.progress));
+    const prog=maxProg/100;
+    const stage=prog<0.25?'DISC':prog<0.5?'DEMO':prog<0.75?'NEGO':'CLOSE';
+    const firstOwner=reps[0].unit.owner;
+    const sc=prog<0.25?'#5580aa':prog<0.5?'#3399dd':prog<0.75?'#ee9900':(firstOwner.color||'#888');
+    const pillW=56,pillH=13,pillX=iso.x-pillW/2,pillY=iso.y-sz-pillH-4;
+    const pillR=6;
+    // Pill bg
+    ctx.fillStyle='rgba(8,8,16,0.92)';
+    ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.fill();
+    // Progress fill
+    ctx.save();ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.clip();
+    ctx.fillStyle=sc;ctx.globalAlpha=0.85;ctx.fillRect(pillX,pillY,pillW*prog,pillH);ctx.globalAlpha=1;ctx.restore();
+    // Border
+    ctx.strokeStyle=sc;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.stroke();
+    // Value + stage text
+    ctx.fillStyle='#ffd700';ctx.font='bold 7px Orbitron';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText('$'+c.value+'K',pillX+4,pillY+pillH/2);
+    ctx.fillStyle=sc;ctx.textAlign='right';
+    ctx.fillText(stage+' '+Math.floor(prog*100)+'%',pillX+pillW-4,pillY+pillH/2);
+    ctx.textBaseline='alphabetic';ctx.textAlign='center';
+    // Rep count badge (if >1)
+    if(reps.length>1){
+      ctx.fillStyle='rgba(8,8,16,0.9)';ctx.beginPath();ctx.arc(pillX+pillW+5,pillY+2,6,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=sc;ctx.lineWidth=1;ctx.beginPath();ctx.arc(pillX+pillW+5,pillY+2,6,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle=sc;ctx.font='bold 6px Orbitron';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(''+reps.length,pillX+pillW+5,pillY+2);ctx.textBaseline='alphabetic';
+    }
+  } else {
+    // Plain value label (no active deal)
+    ctx.font='bold 7px Orbitron';ctx.textAlign='center';
+    ctx.fillStyle=c.owner?(c.owner===player?'rgba(0,255,65,0.8)':'rgba(255,150,150,0.7)'):'#555';
+    ctx.fillText('$'+c.value+'K',iso.x,iso.y-sz-4);
+  }
 
   // Ownership glow
   if(c.owner){const oc=c.owner.color||'#888';const hr=parseInt(oc.slice(1,3),16),hg=parseInt(oc.slice(3,5),16),hb=parseInt(oc.slice(5,7),16);const p=Math.sin(gameTime*0.15+c.pp)*0.1+0.15;ctx.globalAlpha=p;const g=ctx.createRadialGradient(iso.x,iso.y,0,iso.x,iso.y,12);g.addColorStop(0,`rgba(${hr},${hg},${hb},0.3)`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(iso.x,iso.y,12,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
@@ -2045,18 +2350,32 @@ function drawCust(c,iso){
   if(c.owner&&c.loyalty>0){
     const bw=12,bh=2,bx=iso.x-bw/2,by=iso.y+sz*0.6+3;
     const pct=Math.min(1,c.loyalty/100);
-    // Background
     ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(bx,by,bw,bh);
-    // Fill — green>yellow>red gradient based on loyalty
     const lc=pct>0.6?'rgba(0,255,65,0.8)':pct>0.3?'rgba(255,200,0,0.8)':'rgba(255,50,50,0.8)';
     ctx.fillStyle=lc;ctx.fillRect(bx,by,bw*pct,bh);
-    // Border
     ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=0.5;ctx.strokeRect(bx,by,bw,bh);
   }
 }
 
 function drawBase(b,owner,iso){
   const def=BLDGS[b.type],isP=owner===player,col=owner.color||'#888';
+  const ownerIdx=players.indexOf(owner);
+  // Try sprite rendering
+  let spriteImg=null;
+  if(b.type==='office'||b.type==='hq_upgrade'){
+    const upgCount=owner.buildings.filter(bb=>bb.type==='hq_upgrade'&&bb.bp===undefined).length;
+    if(b.type==='office'){
+      spriteImg=getHqSprite(ownerIdx,upgCount);
+    } else {
+      // hq_upgrade renders as next tier
+      const tier=Math.min(4,upgCount+1);
+      const color=SPRITE_COLORS[ownerIdx]||'green';
+      spriteImg=loadSprite('buildings/building-hq-t'+tier+'-'+color+'.png');
+    }
+  } else {
+    spriteImg=getBldgSprite(b.type,ownerIdx);
+  }
+  const useSprite=spriteImg&&spriteImg.complete&&spriteImg.naturalWidth>0;
   // Different building sizes per type
   const sizes={office:[20,38],marketing_dept:[16,28],support_center:[16,30],research_lab:[18,34],hq_upgrade:[24,48],ai_datacenter:[22,44],hr_dept:[17,30],m_and_a_dept:[19,36]};
   const[w,h]=sizes[b.type]||[18,32];
@@ -2066,6 +2385,9 @@ function drawBase(b,owner,iso){
   // Shadow
   ctx.fillStyle='rgba(0,0,0,0.25)';ctx.beginPath();ctx.ellipse(iso.x,iso.y+4,w+4,w*0.35,0,0,Math.PI*2);ctx.fill();
 
+  if(useSprite){
+    ctx.drawImage(spriteImg,iso.x-32,iso.y-60,64,80);
+  } else {
   // Left wall
   ctx.fillStyle=wallL;ctx.beginPath();
   ctx.moveTo(iso.x-w,iso.y);ctx.lineTo(iso.x,iso.y+w*0.5);ctx.lineTo(iso.x,iso.y+w*0.5-h);ctx.lineTo(iso.x-w,iso.y-h);ctx.closePath();ctx.fill();
@@ -2138,6 +2460,7 @@ function drawBase(b,owner,iso){
   // Icon + Label above
   ctx.font='16px serif';ctx.textAlign='center';ctx.fillText(def.icon,iso.x,iso.y-h-w*0.25-2);
   ctx.font='bold 7px Orbitron';ctx.fillStyle=col;ctx.fillText(def.name.toUpperCase(),iso.x,iso.y-h-w*0.25-14);
+  } // end canvas fallback
 
   // ---- CONSTRUCTION OVERLAY ----
   if(b.bp!==undefined){
@@ -2177,7 +2500,7 @@ function drawBase(b,owner,iso){
   }
 }
 
-function drawUnit(u,iso,la,lp,lerpPos){
+function drawUnit(u,iso,la,lp,lerpPos,custRepMap){
   const def=UNITS_DEF[u.type],isP=u.owner===player,col=u.owner.color||'#888',rgb=PLAYER_RGBS[players.indexOf(u.owner)]||'128,128,128';
   if(la===undefined)la=u.anim;
   if(lp===undefined)lp=u.progress;
@@ -2219,7 +2542,13 @@ function drawUnit(u,iso,la,lp,lerpPos){
   const r=9;
   const cx=bx, cy=by-r-2;
 
-  if(u.type==='talent_acq'){
+  // Try sprite rendering for unit
+  const unitOwnerIdx=players.indexOf(u.owner);
+  const unitSpriteImg=getUnitSprite(u.type,unitOwnerIdx);
+  const useUnitSprite=unitSpriteImg&&unitSpriteImg.complete&&unitSpriteImg.naturalWidth>0;
+  if(useUnitSprite){
+    ctx.drawImage(unitSpriteImg,iso.x-24,iso.y-24+bob,48,48);
+  } else if(u.type==='talent_acq'){
     // TALENT ACQUISITION — diamond frame in purple/magenta with suit figure
     const dr=r*1.1;
     ctx.fillStyle=isP?'#1a0a2a':'#2a0a1a';
@@ -2345,37 +2674,6 @@ function drawUnit(u,iso,la,lp,lerpPos){
     ctx.strokeStyle='#886633';ctx.lineWidth=0.8;ctx.beginPath();ctx.moveTo(cx+6.5,cy+1);ctx.lineTo(cx+6.5,cy-0.5);ctx.lineTo(cx+8.5,cy-0.5);ctx.lineTo(cx+8.5,cy+1);ctx.stroke();
   }
 
-  // ---- DEAL STAGE PILL (above head, with integrated progress bar) ----
-  if(u.state==='converting'&&lp>0){
-    const prog=lp/100;
-    const stage=prog<0.25?'DISCOVERY':prog<0.5?'DEMO':prog<0.75?'NEGOTIATION':'CLOSING';
-    const sc=prog<0.25?'#5580aa':prog<0.5?'#3399dd':prog<0.75?'#ee9900':col;
-    const pillW=50,pillH=14,pillX=bx-pillW/2,pillY=by-r-26;
-    const pillR=7; // corner radius
-
-    // Pill background
-    ctx.fillStyle='rgba(8,8,16,0.92)';
-    ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.fill();
-
-    // Progress fill (clipped to pill shape)
-    ctx.save();ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.clip();
-    ctx.fillStyle=sc;ctx.globalAlpha=0.25;ctx.fillRect(pillX,pillY,pillW*prog,pillH);ctx.globalAlpha=1;
-    ctx.restore();
-
-    // Pill border
-    ctx.strokeStyle=sc;ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.stroke();
-
-    // Stage text + percentage
-    ctx.fillStyle=sc;ctx.font='bold 7px Orbitron';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(stage+' '+Math.floor(prog*100)+'%',bx,pillY+pillH/2);
-    ctx.textBaseline='alphabetic';
-
-    // Small connector line from pill to head
-    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=0.5;
-    ctx.beginPath();ctx.moveTo(bx,pillY+pillH);ctx.lineTo(bx,by-r-13);ctx.stroke();
-  }
-
   // ---- NOT INTERESTED PILL (CS Rep blocking) ----
   if(u.state==='blocked'&&u.target){
     const pillW=62,pillH=14,pillX=bx-pillW/2,pillY=by-r-26;
@@ -2409,7 +2707,7 @@ function drawUnit(u,iso,la,lp,lerpPos){
     ctx.fillStyle='rgba(8,8,16,0.92)';
     ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.fill();
     ctx.save();ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.clip();
-    ctx.fillStyle=sc;ctx.globalAlpha=0.25;ctx.fillRect(pillX,pillY,pillW*prog,pillH);ctx.globalAlpha=1;ctx.restore();
+    ctx.fillStyle=sc;ctx.globalAlpha=0.85;ctx.fillRect(pillX,pillY,pillW*prog,pillH);ctx.globalAlpha=1;ctx.restore();
     ctx.strokeStyle=sc;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(pillX+pillR,pillY);ctx.lineTo(pillX+pillW-pillR,pillY);ctx.arcTo(pillX+pillW,pillY,pillX+pillW,pillY+pillR,pillR);ctx.lineTo(pillX+pillW,pillY+pillH-pillR);ctx.arcTo(pillX+pillW,pillY+pillH,pillX+pillW-pillR,pillY+pillH,pillR);ctx.lineTo(pillX+pillR,pillY+pillH);ctx.arcTo(pillX,pillY+pillH,pillX,pillY+pillH-pillR,pillR);ctx.lineTo(pillX,pillY+pillR);ctx.arcTo(pillX,pillY,pillX+pillR,pillY,pillR);ctx.closePath();ctx.stroke();
     ctx.fillStyle=sc;ctx.font='bold 6px Orbitron';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -2562,7 +2860,7 @@ function updateUI(){
   }
   const now=performance.now();if(now-lastBtnRebuild>250){lastBtnRebuild=now;updateBuildBtns();updateUnitBtns();updateTechBtns();updateTeamList()}updateIntel()}
 function updateBuildBtns(){const c=document.getElementById('buildingButtons');c.innerHTML='';
-  Object.entries(BLDGS).forEach(([k,b])=>{const has=!b.requires||player.buildings.some(p=>p.type===b.requires&&p.bp===undefined);const dup=player.buildings.some(p=>p.type===k)&&k!=='hq_upgrade';
+  Object.entries(BLDGS).forEach(([k,b])=>{if(!isAllowedBldg(k))return;const has=!b.requires||player.buildings.some(p=>p.type===b.requires&&p.bp===undefined);const dup=player.buildings.some(p=>p.type===k)&&k!=='hq_upgrade';
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!has||dup||player.cash<b.cost;btn.innerHTML=`<span class="btn-icon">${b.icon}</span><span class="btn-info"><span class="btn-name">${b.name}</span><span class="btn-cost">$${b.cost}K</span></span>`;btn.onclick=()=>buildBldg(k);
     if(btn.disabled){if(!has)btn.dataset.tooltip='Requires '+((BLDGS[b.requires]||{}).name||b.requires);else if(dup)btn.dataset.tooltip='Already built';else btn.dataset.tooltip='Not enough cash ($'+b.cost+'K needed)'}else{btn.removeAttribute('data-tooltip')}
@@ -2570,7 +2868,7 @@ function updateBuildBtns(){const c=document.getElementById('buildingButtons');c.
     row.appendChild(btn);row.appendChild(ib);c.appendChild(row)})}
 function updateUnitBtns(){const c=document.getElementById('unitButtons');c.innerHTML='';
   const cap=player.buildings.filter(b=>b.type==='office'&&b.bp===undefined).length*5+player.buildings.filter(b=>b.type==='hq_upgrade'&&b.bp===undefined).length*10;
-  Object.entries(UNITS_DEF).forEach(([k,u])=>{const hB=!u.requires||player.buildings.some(p=>p.type===u.requires&&p.bp===undefined);const hT=!u.techReq||player.tech[u.techReq]===true;const atC=player.units.length>=cap;
+  Object.entries(UNITS_DEF).forEach(([k,u])=>{if(!isAllowedUnit(k))return;const hB=!u.requires||player.buildings.some(p=>p.type===u.requires&&p.bp===undefined);const hT=!u.techReq||player.tech[u.techReq]===true;const atC=player.units.length>=cap;
     const taMax=k==='talent_acq'&&player.taBuilt;
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!hB||!hT||player.cash<u.cost||atC||taMax;
@@ -2580,7 +2878,7 @@ function updateUnitBtns(){const c=document.getElementById('unitButtons');c.inner
     const ib=document.createElement('button');ib.className='info-btn';ib.textContent='i';ib.onclick=(e)=>{e.stopPropagation();showUnitInfo(k)};
     row.appendChild(btn);row.appendChild(ib);c.appendChild(row)})}
 function updateTechBtns(){const c=document.getElementById('techButtons');c.innerHTML='';
-  Object.entries(TECHS).forEach(([k,t])=>{const hB=!t.requires||player.buildings.some(p=>p.type===t.requires&&p.bp===undefined);const hT=!t.techReq||player.tech[t.techReq]===true;const done=player.tech[k]===true;const building=player.tech[k]==='building';
+  Object.entries(TECHS).forEach(([k,t])=>{if(!isAllowedTech(k))return;const hB=!t.requires||player.buildings.some(p=>p.type===t.requires&&p.bp===undefined);const hT=!t.techReq||player.tech[t.techReq]===true;const done=player.tech[k]===true;const building=player.tech[k]==='building';
     const row=document.createElement('div');row.className='build-btn-row';
     const btn=document.createElement('button');btn.className='build-btn';btn.disabled=!hB||!hT||player.cash<t.cost||done||building;
     if(btn.disabled&&!done&&!building){if(!hB)btn.dataset.tooltip='Requires '+((BLDGS[t.requires]||{}).name||t.requires);else if(!hT)btn.dataset.tooltip='Requires '+((TECHS[t.techReq]||{}).name||t.techReq)+' research';else btn.dataset.tooltip='Not enough cash ($'+t.cost+'K needed)'}else{btn.removeAttribute('data-tooltip')}
@@ -2647,7 +2945,7 @@ function fireUnit(idx){
   if(mpMode)mpActionQueue.push({type:'fire',uid:idx});
   lastBtnRebuild=0;updateUI();
 }
-function buildBldg(type){if(player.cash<BLDGS[type].cost)return;player.cash-=BLDGS[type].cost;const b=player.buildings[0];const ox=(Math.random()-0.5)*3,oy=(Math.random()-0.5)*3;player.buildings.push({type,x:b.x+ox,y:b.y+oy,bp:0,bt:BLDGS[type].buildTime});addLog('Building '+BLDGS[type].name+'...','neutral');showToast('🏗 '+BLDGS[type].name+'!');voiceSystem('building');lastBtnRebuild=0;updateUI();
+function buildBldg(type){if(player.cash<BLDGS[type].cost)return;player.cash-=BLDGS[type].cost;const b=player.buildings[0];const spot=findValidBuildingSpot(b.x,b.y,player.buildings);player.buildings.push({type,x:spot.x,y:spot.y,bp:0,bt:BLDGS[type].buildTime});addLog('Building '+BLDGS[type].name+'...','neutral');showToast('🏗 '+BLDGS[type].name+'!');voiceSystem('building');lastBtnRebuild=0;updateUI();
   if(mpMode)mpActionQueue.push({type:'build',btype:type,ox,oy})}
 function hireUnit(type){if(player.cash<UNITS_DEF[type].cost)return;
   if(type==='talent_acq'&&player.taBuilt){showToast('⚠ Max 1 Talent Acquisition!');return}
@@ -2688,6 +2986,7 @@ function confirmExit(){
   document.getElementById('exitGameBtn').style.display='none';
   switchMusic('title');
   if(mpPollTimer){clearInterval(mpPollTimer);mpPollTimer=null}
+  if(mpMode&&mpRoom){mpCleanup()}
   mpMode=false;
 }
 function confirmLiquidate(){
@@ -2728,7 +3027,7 @@ function showUnitInfo(k){const u=UNITS_DEF[k];const count=player.units.filter(x=
   if(k==='sales_rep')abilities.push('Can steal enemy accounts (slow — 0.15× rate)');
   if(k==='sr_sales_rep')abilities.push('Can steal enemy accounts (fast — 0.5× rate)');
   if(k==='ai_agent')abilities.push('Can steal enemy accounts (fast — 0.5× rate)');
-  if(k==='marketer')abilities.push('Attracts nearby prospects');
+  if(k==='marketer')abilities.push('Sabotages enemy customer loyalty');
   if(k==='service_rep'){abilities.push('Defends customers from enemy poaching');abilities.push('Slows enemy sales progress when nearby');abilities.push('Blocks sales entirely if CS reps outnumber attackers')}
   if(k==='ai_agent')abilities.push('AI-powered: fastest + strongest');
   if(k==='talent_acq'){abilities.push('Poaches enemy\'s best sales talent');abilities.push('Auto-targets highest-value enemy unit');abilities.push('Counters enemy TA in negotiation duels');abilities.push('Limit: 1 per team')}
@@ -2752,7 +3051,7 @@ function showTechInfo(k){const t=TECHS[k];const done=player.tech[k];
   const effects=[];
   if(k==='basic_crm')effects.push('+20% close rate for all reps');
   if(k==='advanced_sales')effects.push('Unlocks Sr. Sales Rep hiring');
-  if(k==='marketing_automation')effects.push('Doubles marketer attraction range');
+  if(k==='marketing_automation')effects.push('Doubles marketer sabotage rate');
   if(k==='customer_success')effects.push('Doubles CS rep defense range (4→8 tiles)');
   if(k==='ai_first')effects.push('Unlocks AI SDR — fastest, strongest unit');
   if(k==='enterprise')effects.push('All accounts generate 2x MRR');
@@ -2780,7 +3079,7 @@ function showUnitInspector(u){
   if(u.type==='sales_rep')abilities.push('Can steal enemy accounts (slow — 0.15× rate)');
   if(u.type==='sr_sales_rep')abilities.push('Can steal enemy accounts (fast — 0.5× rate)');
   if(u.type==='ai_agent')abilities.push('Can steal enemy accounts (fast — 0.5× rate)');
-  if(u.type==='marketer'){abilities.push('Sabotages enemy customer loyalty');abilities.push('Attracts free prospects within radius');abilities.push('Boosts prospect spawn rate in growing mode')}
+  if(u.type==='marketer'){abilities.push('Sabotages enemy customer loyalty');abilities.push('Boosts prospect spawn rate in growing mode')}
   if(u.type==='service_rep'){abilities.push('Defends customers from enemy poaching');abilities.push('Slows enemy sales when near your accounts');abilities.push('Blocks sales if CS reps outnumber attackers')}
   if(u.type==='ai_agent')abilities.push('AI-powered: fastest movement + strongest close');
   if(u.type==='talent_acq'){abilities.push('Poaches enemy\'s best sales talent');abilities.push('Auto-targets highest-value enemy unit');abilities.push('Counters enemy TA in negotiation duels')}
@@ -2819,6 +3118,7 @@ function showUnitInspector(u){
 function closeInfo(){document.getElementById('infoModal').classList.remove('open')}
 function endGame(won,reason){
   gameRunning=false;
+  if(mpMode&&mpRoom){mpCleanup()}
   switchMusic('title');
   document.getElementById('gameOver').style.display='flex';
   const titles={domination:won?'MARKET DOMINANCE':'OUTCOMPETED',mrr_race:won?'MRR CHAMPION':'MRR DEFEATED',mrr_timeout:won?'MRR LEADER':'MRR BEHIND',elimination:won?'COMPETITOR ELIMINATED':'BANKRUPT',conquest:won?'TOTAL CONQUEST':'TOTALLY CONQUERED',bankrupt:won?'COMPETITOR COLLAPSED':'BANKRUPT'};
